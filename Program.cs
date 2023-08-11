@@ -4,6 +4,7 @@ using System.IO;
 using System.Xml;
 using System.Linq;
 using System.Collections.Generic;
+using System.Security.Policy;
 
 class StartLoc
 {
@@ -68,7 +69,7 @@ class MB_Zones
         */
 
         // TODO: Remove temporary hardcoding
-        scen_path = @"C:\Program Files (x86)\Steam\steamapps\common\H3EK\tags\halo_2\levels\elongation\elongation.scenario";
+        scen_path = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\H3EK\\tags\\halo_2\\levels\\elongation\\elongation.scenario";
         xml_path = @"G:\Steam\steamapps\common\H2EK\elongation_output.xml";
 
         string h3ek_path = scen_path.Substring(0, scen_path.IndexOf("H3EK") + "H3EK".Length);
@@ -174,21 +175,52 @@ class MB_Zones
             }
         }
 
-        List<string> all_data = new List<string>();
-        ManagedBlamHandler(all_data, h3ek_path, scen_path);
+        ManagedBlamHandler(all_starting_locs, h3ek_path, scen_path);
     }
 
-    static void ManagedBlamHandler(List<string> all_data, string h3ek_path, string scen_path)
+    static void ManagedBlamHandler(List<StartLoc> spawn_data, string h3ek_path, string scen_path)
     {
         // Variables
         var tag_path = Bungie.Tags.TagPath.FromPathAndType(Path.ChangeExtension(scen_path.Split(new[] { "\\tags\\" }, StringSplitOptions.None).Last(), null).Replace('\\', Path.DirectorySeparatorChar), "scnr*");
 
         ManagedBlamSystem.InitializeProject(InitializationType.TagsOnly, h3ek_path);
-        Console.WriteLine("\nSaving tag...\n");
 
         using (var tagFile = new Bungie.Tags.TagFile(tag_path))
         {
+            // Spawns
+            int i = 0;
+            foreach (var spawn in spawn_data)
+            {
+                // Add new
+                ((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).AddElement();
+
+                // Type
+                var scen_type = (Bungie.Tags.TagFieldBlockIndex)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[1];
+                scen_type.Value = 0; // Assuming 0 is the index of respawn scenery
+
+                // Dropdown type and source (won't be valid without these)
+                var dropdown_type = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
+                var dropdown_source = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[3];
+                dropdown_type.Value = 6; // 6 for scenery
+                dropdown_source.Value = 1; // 1 for editor
+
+                // Position
+                var y = ((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[4]).Elements[0].Fields[0].FieldName;
+                var xyz_pos = (Bungie.Tags.TagFieldElementArraySingle)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[4]).Elements[0].Fields[2];
+                xyz_pos.Data = spawn.position_xyz.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
+
+                // Rotation
+                var rotation = (Bungie.Tags.TagFieldElementArraySingle)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[4]).Elements[0].Fields[3];
+                string angle_xyz = spawn.facing_angle + ",0,0";
+                rotation.Data = angle_xyz.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
+
+
+                i++;
+            }
+
             tagFile.Save();
+
+            Console.WriteLine("Finished");
         }
     }
 }
