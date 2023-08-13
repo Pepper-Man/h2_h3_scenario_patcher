@@ -5,6 +5,7 @@ using System.Xml;
 using System.Linq;
 using System.Collections.Generic;
 using System.Security.Policy;
+using Bungie.Tags;
 
 class StartLoc
 {
@@ -19,6 +20,14 @@ class StartLoc
     public string spawn_type_1 { get; set; }
     public string spawn_type_2 { get; set; }
     public string spawn_type_3 { get; set; }
+}
+
+class WeapLoc
+{
+    public string weap_xyz { get; set; }
+    public string weap_orient { get; set; }
+    public string spawn_time { get; set; }
+    public string weap_type { get; set; }
 }
 
 
@@ -124,8 +133,10 @@ class MB_Zones
         XmlNode root = scenfile.DocumentElement;
 
         XmlNodeList player_start_loc_block = root.SelectNodes(".//block[@name='player starting locations']");
+        XmlNodeList weapon_placements_block = root.SelectNodes(".//block[@name='netgame equipment']");
 
         List<StartLoc> all_starting_locs = new List<StartLoc>();
+        List<WeapLoc> all_weapon_locs = new List<WeapLoc>();
 
         foreach (XmlNode location in player_start_loc_block)
         {
@@ -175,11 +186,71 @@ class MB_Zones
             }
         }
 
-        ManagedBlamHandler(all_starting_locs, h3ek_path, scen_path);
+        foreach (XmlNode weapon in weapon_placements_block)
+        {
+            bool weaps_end = false;
+            int i = 0;
+            while (!weaps_end)
+            {
+                string search_string = "./element[@index='" + i + "']";
+                XmlNode element = weapon.SelectSingleNode(search_string);
+                if (element != null)
+                {
+                    string xyz = element.SelectSingleNode("./field[@name='position']").InnerText.Trim();
+                    string orient = element.SelectSingleNode("./field[@name='orientation']").InnerText.Trim();
+                    string time = element.SelectSingleNode("./field[@name='spawn time (in seconds, 0 = default)']").InnerText.Trim();
+                    string type = element.SelectSingleNode("./tag_reference[@name='item/vehicle collection']").InnerText.Trim();
+
+                    all_weapon_locs.Add(new WeapLoc
+                    {
+                        weap_xyz = xyz,
+                        weap_orient = orient,
+                        spawn_time = time,
+                        weap_type = type
+                    });
+
+                    Console.WriteLine("Process netgame equipment " + i);
+                    i++;
+                }
+                else
+                {
+                    weaps_end = true;
+                    Console.WriteLine("\nFinished processing netgame equipment (weapon) data.");
+                }
+            }
+        }
+
+        ManagedBlamHandler(all_starting_locs, all_weapon_locs, h3ek_path, scen_path);
     }
 
-    static void ManagedBlamHandler(List<StartLoc> spawn_data, string h3ek_path, string scen_path)
+    static void ManagedBlamHandler(List<StartLoc> spawn_data, List<WeapLoc> weap_data, string h3ek_path, string scen_path)
     {
+        // Weapons dictionary
+        Dictionary<string, Bungie.Tags.TagPath> weapMapping = new Dictionary<string, Bungie.Tags.TagPath>
+        {
+            {"frag_grenades", TagPath.FromPathAndType(@"objects\weapons\grenade\frag_grenade\frag_grenade", "eqip*")},
+            {"plasma_grenades", TagPath.FromPathAndType(@"objects\weapons\grenade\plasma_grenade\plasma_grenade", "eqip*")},
+            {"energy_sword", TagPath.FromPathAndType(@"objects\weapons\melee\energy_sword\energy_sword", "weap*")},
+            {"magnum", TagPath.FromPathAndType(@"objects\weapons\pistol\magnum\magnum", "weap*")},
+            {"needler", TagPath.FromPathAndType(@"objects\weapons\pistol\needler\needler", "weap*")},
+            {"plasma_pistol", TagPath.FromPathAndType(@"objects\weapons\pistol\plasma_pistol\plasma_pistol", "weap*")},
+            {"battle_rifle", TagPath.FromPathAndType(@"objects\weapons\rifle\battle_rifle\battle_rifle", "weap*")},
+            {"beam_rifle", TagPath.FromPathAndType(@"objects\weapons\rifle\beam_rifle\beam_rifle", "weap*")},
+            {"carbine", TagPath.FromPathAndType(@"objects\weapons\rifle\covenant_carbine\covenant_carbine", "weap*")},
+            {"plasma_rifle", TagPath.FromPathAndType(@"objects\weapons\rifle\plasma_rifle\plasma_rifle", "weap*")},
+            {"brute_plasma_rifle", TagPath.FromPathAndType(@"objects\weapons\rifle\plasma_rifle_red\plasma_rifle_red", "weap*")},
+            {"shotgun", TagPath.FromPathAndType(@"objects\weapons\rifle\shotgun\shotgun", "weap*")},
+            {"smg", TagPath.FromPathAndType(@"objects\weapons\rifle\smg\smg", "weap*")},
+            {"smg_silenced", TagPath.FromPathAndType(@"objects\weapons\rifle\smg_silenced\smg_silenced", "weap*")},
+            {"sniper_rifle", TagPath.FromPathAndType(@"objects\weapons\rifle\sniper_rifle\sniper_rifle", "weap*")},
+            {"rocket_launcher", TagPath.FromPathAndType(@"objects\weapons\support_high\rocket_launcher\rocket_launcher", "weap*")},
+            {"fuel_rod_gun", TagPath.FromPathAndType(@"objects\weapons\support_high\flak_cannon\flak_cannon", "weap*")},
+            {"sentinel_beam", TagPath.FromPathAndType(@"objects\weapons\support_low\sentinel_gun\sentinel_gun", "weap*")},
+            {"brute_shot", TagPath.FromPathAndType(@"objects\weapons\support_low\brute_shot\brute_shot", "weap*")},
+        };
+
+
+
         // Variables
         var tag_path = Bungie.Tags.TagPath.FromPathAndType(Path.ChangeExtension(scen_path.Split(new[] { "\\tags\\" }, StringSplitOptions.None).Last(), null).Replace('\\', Path.DirectorySeparatorChar), "scnr*");
         var respawn_scen_path = Bungie.Tags.TagPath.FromPathAndType(@"objects\multi\spawning\respawn_point", "scen*");
@@ -259,6 +330,71 @@ class MB_Zones
 
 
                 i++;
+            }
+
+            Dictionary<string, int> paletteMapping = new Dictionary<string, int>();
+
+            // Weapons Section
+            foreach (var weapon in weap_data)
+            {
+                string weap_type = weapon.weap_type.Split('\\')[weapon.weap_type.Split('\\').Length - 1];
+
+                if (weap_type == "frag_grenades" || weap_type == "plasma_grenades")
+                {
+                    // Grenade stuff, treat differently
+                    Console.WriteLine("Adding " + weap_type + " equipment");
+                }
+                if (weap_type == "")
+                {
+                    // All games entries, ignore
+                    Console.WriteLine("Ignoring blank weapon collections");
+                }
+                else
+                {
+                    // Weapon, check if palette entry exists first
+                    Console.WriteLine("Adding " + weap_type + " weapon");
+                    bool entry_exists = false;
+                    foreach (var palette_entry in ((Bungie.Tags.TagFieldBlock)tagFile.Fields[29]).Elements)
+                    {
+                        var temp_type = weapMapping[weap_type];
+                        if (((Bungie.Tags.TagFieldReference)palette_entry.Fields[0]).Path == temp_type)
+                        {
+                            entry_exists = true;
+                        }
+                    }
+
+                    // Add palette entry if needed
+                    if (!entry_exists)
+                    {
+                        int current_count = ((Bungie.Tags.TagFieldBlock)tagFile.Fields[29]).Elements.Count();
+                        ((Bungie.Tags.TagFieldBlock)tagFile.Fields[29]).AddElement();
+                        var weap_tag_ref = (Bungie.Tags.TagFieldReference)((Bungie.Tags.TagFieldBlock)tagFile.Fields[29]).Elements[current_count].Fields[0];
+                        weap_tag_ref.Path = weapMapping[weap_type];
+                        paletteMapping.Add(weap_type, current_count);
+                    }
+
+                    // Now add the weapon itself
+                    int weapon_count = ((Bungie.Tags.TagFieldBlock)tagFile.Fields[28]).Elements.Count();
+                    ((Bungie.Tags.TagFieldBlock)tagFile.Fields[28]).AddElement(); // Add new weapon entry
+
+                    // XYZ
+                    var weap_xyz = (Bungie.Tags.TagFieldElementArraySingle)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[4]).Elements[0].Fields[2];
+                    weap_xyz.Data = weapon.weap_xyz.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
+
+                    // Rotation
+                    var weap_orient = (Bungie.Tags.TagFieldElementArraySingle)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[4]).Elements[0].Fields[3];
+                    weap_orient.Data = weapon.weap_orient.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
+
+                    // Type
+                    var weap_tag = (Bungie.Tags.TagFieldBlockIndex)((Bungie.Tags.TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[1];
+                    weap_tag.Value = paletteMapping[weap_type];
+
+                    // Dropdown type and source (won't be valid without these)
+                    var dropdown_type = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
+                    var dropdown_source = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[3];
+                    dropdown_type.Value = 2; // 2 for weapon
+                    dropdown_source.Value = 1; // 1 for editor
+                }
             }
 
             tagFile.Save();
