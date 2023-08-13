@@ -182,13 +182,51 @@ class MB_Zones
     {
         // Variables
         var tag_path = Bungie.Tags.TagPath.FromPathAndType(Path.ChangeExtension(scen_path.Split(new[] { "\\tags\\" }, StringSplitOptions.None).Last(), null).Replace('\\', Path.DirectorySeparatorChar), "scnr*");
+        var respawn_scen_path = Bungie.Tags.TagPath.FromPathAndType(@"objects\multi\spawning\respawn_point", "scen*");
+        int respawn_scen_index = 0;
 
         ManagedBlamSystem.InitializeProject(InitializationType.TagsOnly, h3ek_path);
 
         using (var tagFile = new Bungie.Tags.TagFile(tag_path))
         {
-            // Spawns
+            // Spawns Section
             int i = 0;
+            int temp_index = 0;
+            bool respawn_found = false;
+
+            // Add respawn point scenery, if it doesn't already exist
+            if (((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).Elements.Count() != 0)
+            {
+                foreach (var scen_type in ((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).Elements)
+                {
+                    if (((Bungie.Tags.TagFieldReference)scen_type.Fields[0]).Path == respawn_scen_path)
+                    {
+                        // Respawn point scenery already in palette, set index
+                        respawn_scen_index = temp_index;
+                        respawn_found = true;
+                        break;
+                    }
+                    temp_index++;
+                }
+                if (respawn_found == false)
+                {
+                    // Respawn point is not in the palette, add it and set the index
+                    respawn_scen_index = ((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).Elements.Count();
+                    ((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).AddElement();
+                    var scen_tag = (Bungie.Tags.TagFieldReference)((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).Elements[0].Fields[0];
+                    scen_tag.Path = respawn_scen_path;
+                }
+            }
+            else
+            {
+                Console.WriteLine("No existing sceneries, adding respawn point");
+                ((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).AddElement();
+                var scen_tag = (Bungie.Tags.TagFieldReference)((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).Elements[0].Fields[0];
+                scen_tag.Path = respawn_scen_path;
+            }
+            
+
+
             foreach (var spawn in spawn_data)
             {
                 // Add new
@@ -196,7 +234,7 @@ class MB_Zones
 
                 // Type
                 var scen_type = (Bungie.Tags.TagFieldBlockIndex)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[1];
-                scen_type.Value = 0; // Assuming 0 is the index of respawn scenery
+                scen_type.Value = respawn_scen_index; // Assuming 0 is the index of respawn scenery
 
                 // Dropdown type and source (won't be valid without these)
                 var dropdown_type = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
@@ -213,6 +251,11 @@ class MB_Zones
                 var rotation = (Bungie.Tags.TagFieldElementArraySingle)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[4]).Elements[0].Fields[3];
                 string angle_xyz = spawn.facing_angle + ",0,0";
                 rotation.Data = angle_xyz.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
+
+                // Team
+                var z = ((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[7]).Elements[0].Fields[0].FieldName;
+                var team = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[7]).Elements[0].Fields[3];
+                team.Value = int.Parse(new string(spawn.team_enum.TakeWhile(c => c != ',').ToArray()));
 
 
                 i++;
