@@ -4,7 +4,6 @@ using System.IO;
 using System.Xml;
 using System.Linq;
 using System.Collections.Generic;
-using System.Security.Policy;
 using Bungie.Tags;
 
 class StartLoc
@@ -341,30 +340,77 @@ class MB_Zones
 
                 if (weap_type == "frag_grenades" || weap_type == "plasma_grenades")
                 {
-                    // Grenade stuff, treat differently
+                    // Grenade stuff, need to treat as equipment not weapon
                     Console.WriteLine("Adding " + weap_type + " equipment");
+
+                    // Equipment, check if palette entry exists first
+                    Console.WriteLine("Adding " + weap_type + " equipment");
+                    bool equip_entry_exists = false;
+                    foreach (var palette_entry in ((Bungie.Tags.TagFieldBlock)tagFile.Fields[27]).Elements)
+                    {
+                        var temp_type = weapMapping[weap_type];
+                        if (((Bungie.Tags.TagFieldReference)palette_entry.Fields[0]).Path == temp_type)
+                        {
+                            equip_entry_exists = true;
+                        }
+                    }
+
+                    // Add palette entry if needed
+                    if (!equip_entry_exists)
+                    {
+                        int current_count = ((Bungie.Tags.TagFieldBlock)tagFile.Fields[27]).Elements.Count();
+                        ((Bungie.Tags.TagFieldBlock)tagFile.Fields[27]).AddElement();
+                        var equip_tag_ref = (Bungie.Tags.TagFieldReference)((Bungie.Tags.TagFieldBlock)tagFile.Fields[27]).Elements[current_count].Fields[0];
+                        equip_tag_ref.Path = weapMapping[weap_type];
+                        paletteMapping.Add(weap_type, current_count);
+                    }
+
+                    // Now add the equipment itself
+                    int equip_count = ((Bungie.Tags.TagFieldBlock)tagFile.Fields[26]).Elements.Count();
+                    ((Bungie.Tags.TagFieldBlock)tagFile.Fields[26]).AddElement(); // Add new weapon entry
+
+                    // XYZ
+                    var equip_xyz = (Bungie.Tags.TagFieldElementArraySingle)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[4]).Elements[0].Fields[2];
+                    equip_xyz.Data = weapon.weap_xyz.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
+
+                    // Rotation
+                    var equip_orient = (Bungie.Tags.TagFieldElementArraySingle)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[4]).Elements[0].Fields[3];
+                    equip_orient.Data = weapon.weap_orient.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
+
+                    // Type
+                    var equip_tag = (Bungie.Tags.TagFieldBlockIndex)((Bungie.Tags.TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[1];
+                    equip_tag.Value = paletteMapping[weap_type];
+
+                    // Dropdown type and source (won't be valid without these)
+                    var dropdown_type = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
+                    var dropdown_source = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[3];
+                    dropdown_type.Value = 3; // 2 for equipment
+                    dropdown_source.Value = 1; // 1 for editor
+
+                    continue;
                 }
                 if (weap_type == "")
                 {
                     // All games entries, ignore
                     Console.WriteLine("Ignoring blank weapon collections");
+                    continue;
                 }
                 else
                 {
                     // Weapon, check if palette entry exists first
                     Console.WriteLine("Adding " + weap_type + " weapon");
-                    bool entry_exists = false;
+                    bool weap_entry_exists = false;
                     foreach (var palette_entry in ((Bungie.Tags.TagFieldBlock)tagFile.Fields[29]).Elements)
                     {
                         var temp_type = weapMapping[weap_type];
                         if (((Bungie.Tags.TagFieldReference)palette_entry.Fields[0]).Path == temp_type)
                         {
-                            entry_exists = true;
+                            weap_entry_exists = true;
                         }
                     }
 
                     // Add palette entry if needed
-                    if (!entry_exists)
+                    if (!weap_entry_exists)
                     {
                         int current_count = ((Bungie.Tags.TagFieldBlock)tagFile.Fields[29]).Elements.Count();
                         ((Bungie.Tags.TagFieldBlock)tagFile.Fields[29]).AddElement();
