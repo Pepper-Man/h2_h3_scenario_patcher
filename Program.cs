@@ -381,6 +381,10 @@ class MB_Zones
                     var equip_tag = (Bungie.Tags.TagFieldBlockIndex)((Bungie.Tags.TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[1];
                     equip_tag.Value = paletteMapping[weap_type];
 
+                    // Spawn timer
+                    var equip_stime = (Bungie.Tags.TagFieldElementInteger)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[6]).Elements[0].Fields[8];
+                    equip_stime.Data = uint.Parse(weapon.spawn_time);
+
                     // Dropdown type and source (won't be valid without these)
                     var dropdown_type = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
                     var dropdown_source = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[3];
@@ -434,6 +438,10 @@ class MB_Zones
                     // Type
                     var weap_tag = (Bungie.Tags.TagFieldBlockIndex)((Bungie.Tags.TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[1];
                     weap_tag.Value = paletteMapping[weap_type];
+
+                    // Spawn timer
+                    var weap_stime = (Bungie.Tags.TagFieldElementInteger)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[7]).Elements[0].Fields[8];
+                    weap_stime.Data = uint.Parse(weapon.spawn_time);
 
                     // Dropdown type and source (won't be valid without these)
                     var dropdown_type = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
