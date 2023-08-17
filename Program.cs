@@ -46,6 +46,14 @@ class TrigVol
     public string vol_up { get; set; }
 }
 
+class Vehicle
+{
+    public string vehi_type { get; set; }
+    public string vehi_xyz { get; set; }
+    public string vehi_orient { get; set; }
+    public string vehi_vrnt { get; set; }
+}
+
 
 class MB_Zones
 {
@@ -168,12 +176,16 @@ class MB_Zones
         XmlNodeList scen_palette_block = root.SelectNodes(".//block[@name='scenery palette']");
         XmlNodeList scen_entries_block = root.SelectNodes(".//block[@name='scenery']");
         XmlNodeList trig_vol_block = root.SelectNodes(".//block[@name='trigger volumes']");
+        XmlNodeList vehi_palette_block = root.SelectNodes(".//block[@name='vehicle palette']");
+        XmlNodeList vehi_entries_block = root.SelectNodes(".//block[@name='vehicles']");
 
         List<StartLoc> all_starting_locs = new List<StartLoc>();
         List<WeapLoc> all_weapon_locs = new List<WeapLoc>();
         List<TagPath> all_scen_types = new List<TagPath>();
         List<Scenery> all_scen_entries = new List<Scenery>();
         List<TrigVol> all_trig_vols = new List<TrigVol>();
+        List<TagPath> all_vehi_types = new List<TagPath>();
+        List<Vehicle> all_vehi_entries = new List<Vehicle>();
 
         foreach (XmlNode location in player_start_loc_block)
         {
@@ -257,14 +269,14 @@ class MB_Zones
             }
         }
 
-        foreach (XmlNode location in scen_palette_block)
+        foreach (XmlNode entry in scen_palette_block)
         {
             bool scen_end = false;
             int i = 0;
             while (!scen_end)
             {
                 string search_string = "./element[@index='" + i + "']";
-                XmlNode element = location.SelectSingleNode(search_string);
+                XmlNode element = entry.SelectSingleNode(search_string);
                 if (element != null)
                 {
                     string scen_type = element.SelectSingleNode("./tag_reference[@name='name']").InnerText.Trim();
@@ -279,14 +291,14 @@ class MB_Zones
             }
         }
 
-        foreach (XmlNode location in scen_entries_block)
+        foreach (XmlNode scenery in scen_entries_block)
         {
             bool scen_end = false;
             int i = 0;
             while (!scen_end)
             {
                 string search_string = "./element[@index='" + i + "']";
-                XmlNode element = location.SelectSingleNode(search_string);
+                XmlNode element = scenery.SelectSingleNode(search_string);
                 if (element != null)
                 {
                     string type = element.SelectSingleNode("./block_index[@name='short block index']").Attributes["index"].Value.ToString();
@@ -312,14 +324,14 @@ class MB_Zones
             }
         }
 
-        foreach (XmlNode location in trig_vol_block)
+        foreach (XmlNode volume in trig_vol_block)
         {
             bool vols_end = false;
             int i = 0;
             while (!vols_end)
             {
                 string search_string = "./element[@index='" + i + "']";
-                XmlNode element = location.SelectSingleNode(search_string);
+                XmlNode element = volume.SelectSingleNode(search_string);
                 if (element != null)
                 {
                     string name = element.SelectSingleNode("./field[@name='name']").InnerText.Trim();
@@ -347,11 +359,66 @@ class MB_Zones
             }
         }
 
+        foreach (XmlNode entry in vehi_palette_block)
+        {
+            bool vehi_end = false;
+            int i = 0;
+            while (!vehi_end)
+            {
+                string search_string = "./element[@index='" + i + "']";
+                XmlNode element = entry.SelectSingleNode(search_string);
+                if (element != null)
+                {
+                    string vehi_type = element.SelectSingleNode("./tag_reference[@name='name']").InnerText.Trim();
+                    all_vehi_types.Add(TagPath.FromPathAndType(vehi_type, "vehi*"));
+                    i++;
+                }
+                else
+                {
+                    vehi_end = true;
+                    Console.WriteLine("Finished processing vehicle palette data.");
+                }
+            }
+        }
 
-        ManagedBlamHandler(all_starting_locs, all_weapon_locs, all_scen_types, all_scen_entries, all_trig_vols, h3ek_path, scen_path);
+        foreach (XmlNode vehicle in vehi_entries_block)
+        {
+            bool vehi_end = false;
+            int i = 0;
+            while (!vehi_end)
+            {
+                string search_string = "./element[@index='" + i + "']";
+                XmlNode element = vehicle.SelectSingleNode(search_string);
+                if (element != null)
+                {
+                    string type = element.SelectSingleNode("./block_index[@name='short block index']").Attributes["index"].Value.ToString();
+                    string xyz = element.SelectSingleNode("./field[@name='position']").InnerText.Trim();
+                    string orient = element.SelectSingleNode("./field[@name='rotation']").InnerText.Trim();
+                    string variant = element.SelectSingleNode("./field[@name='variant name']").InnerText.Trim();
+
+                    all_vehi_entries.Add(new Vehicle
+                    {
+                        vehi_type = type,
+                        vehi_xyz = xyz,
+                        vehi_orient = orient,
+                        vehi_vrnt = variant
+                    });
+
+                    i++;
+                }
+                else
+                {
+                    vehi_end = true;
+                    Console.WriteLine("Finished processing vehicle placement data.");
+                }
+            }
+        }
+
+
+        ManagedBlamHandler(all_starting_locs, all_weapon_locs, all_scen_types, all_scen_entries, all_trig_vols, all_vehi_types, all_vehi_entries, h3ek_path, scen_path);
     }
 
-    static void ManagedBlamHandler(List<StartLoc> spawn_data, List<WeapLoc> weap_data, List<TagPath> all_scen_types, List<Scenery> all_scen_entries, List<TrigVol> all_trig_vols, string h3ek_path, string scen_path)
+    static void ManagedBlamHandler(List<StartLoc> spawn_data, List<WeapLoc> weap_data, List<TagPath> all_scen_types, List<Scenery> all_scen_entries, List<TrigVol> all_trig_vols, List<TagPath> all_vehi_types, List<Vehicle> all_vehi_entries, string h3ek_path, string scen_path)
     {
         // Weapons dictionary
         Dictionary<string, TagPath> weapMapping = new Dictionary<string, TagPath>
@@ -393,6 +460,7 @@ class MB_Zones
             int temp_index = 0;
             bool respawn_found = false;
             int totalScenCount = 0;
+            int totalVehiCount = 0;
 
             // Add respawn point scenery, if it doesn't already exist
             if (((TagFieldBlock)tagFile.Fields[21]).Elements.Count() != 0)
@@ -664,6 +732,60 @@ class MB_Zones
                 // Extents
                 var ext = (TagFieldElementArraySingle)((TagFieldBlock)tagFile.Fields[55]).Elements[current_count].Fields[7];
                 ext.Data = vol.vol_ext.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
+            }
+
+            // Vehicle section
+            foreach (TagPath vehi_type in all_vehi_types)
+            {
+                // Check if current type exists in palette
+                bool type_exists_already = false;
+                foreach (var palette_entry in ((TagFieldBlock)tagFile.Fields[25]).Elements)
+                {
+                    var x = ((TagFieldReference)palette_entry.Fields[0]).Path;
+                    if (x == vehi_type)
+                    {
+                        type_exists_already = true;
+                        break;
+                    }
+                }
+
+                // Add palette entry if needed
+                if (!type_exists_already)
+                {
+                    int current_count = ((TagFieldBlock)tagFile.Fields[25]).Elements.Count();
+                    ((TagFieldBlock)tagFile.Fields[25]).AddElement();
+                    var vehi_type_ref = (TagFieldReference)((TagFieldBlock)tagFile.Fields[25]).Elements[current_count].Fields[0];
+                    vehi_type_ref.Path = vehi_type;
+                    totalVehiCount++;
+                }
+            }
+
+            foreach (Vehicle vehicle in all_vehi_entries)
+            {
+                int current_count = ((TagFieldBlock)tagFile.Fields[24]).Elements.Count();
+                ((TagFieldBlock)tagFile.Fields[24]).AddElement();
+                var type_ref = (TagFieldBlockIndex)((TagFieldBlock)tagFile.Fields[24]).Elements[current_count].Fields[1];
+                type_ref.Value = int.Parse(vehicle.vehi_type);
+
+                // Dropdown type and source (won't be valid without these)
+                var dropdown_type = (TagFieldEnum)((TagFieldStruct)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[24]).Elements[current_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
+                var dropdown_source = (TagFieldEnum)((TagFieldStruct)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[24]).Elements[current_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[3];
+                dropdown_type.Value = 1; // 1 for vehicle
+                dropdown_source.Value = 1; // 1 for editor
+
+                // Position
+                var y = ((TagFieldStruct)((TagFieldBlock)tagFile.Fields[24]).Elements[current_count].Fields[4]).Elements[0].Fields[0].FieldName;
+                var xyz_pos = (TagFieldElementArraySingle)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[24]).Elements[current_count].Fields[4]).Elements[0].Fields[2];
+                xyz_pos.Data = vehicle.vehi_xyz.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
+
+                // Rotation
+                var rotation = (TagFieldElementArraySingle)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[24]).Elements[current_count].Fields[4]).Elements[0].Fields[3];
+                rotation.Data = vehicle.vehi_orient.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
+
+                // Variant
+                var z = ((TagFieldStruct)((TagFieldBlock)tagFile.Fields[24]).Elements[current_count].Fields[5]).Elements[0].Fields[0].FieldName;
+                var variant = (TagFieldElementStringID)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[24]).Elements[current_count].Fields[5]).Elements[0].Fields[0];
+                variant.Data = vehicle.vehi_vrnt;
             }
 
             tagFile.Save();
