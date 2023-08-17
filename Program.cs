@@ -1,10 +1,10 @@
 ﻿using Bungie;
-using System;
-using System.IO;
-using System.Xml;
-using System.Linq;
-using System.Collections.Generic;
 using Bungie.Tags;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Xml;
 
 class StartLoc
 {
@@ -354,7 +354,7 @@ class MB_Zones
     static void ManagedBlamHandler(List<StartLoc> spawn_data, List<WeapLoc> weap_data, List<TagPath> all_scen_types, List<Scenery> all_scen_entries, List<TrigVol> all_trig_vols, string h3ek_path, string scen_path)
     {
         // Weapons dictionary
-        Dictionary<string, Bungie.Tags.TagPath> weapMapping = new Dictionary<string, Bungie.Tags.TagPath>
+        Dictionary<string, TagPath> weapMapping = new Dictionary<string, TagPath>
         {
             {"frag_grenades", TagPath.FromPathAndType(@"objects\weapons\grenade\frag_grenade\frag_grenade", "eqip*")},
             {"plasma_grenades", TagPath.FromPathAndType(@"objects\weapons\grenade\plasma_grenade\plasma_grenade", "eqip*")},
@@ -380,13 +380,13 @@ class MB_Zones
 
 
         // Variables
-        var tag_path = Bungie.Tags.TagPath.FromPathAndType(Path.ChangeExtension(scen_path.Split(new[] { "\\tags\\" }, StringSplitOptions.None).Last(), null).Replace('\\', Path.DirectorySeparatorChar), "scnr*");
-        var respawn_scen_path = Bungie.Tags.TagPath.FromPathAndType(@"objects\multi\spawning\respawn_point", "scen*");
+        var tag_path = TagPath.FromPathAndType(Path.ChangeExtension(scen_path.Split(new[] { "\\tags\\" }, StringSplitOptions.None).Last(), null).Replace('\\', Path.DirectorySeparatorChar), "scnr*");
+        var respawn_scen_path = TagPath.FromPathAndType(@"objects\multi\spawning\respawn_point", "scen*");
         int respawn_scen_index = 0;
 
         ManagedBlamSystem.InitializeProject(InitializationType.TagsOnly, h3ek_path);
 
-        using (var tagFile = new Bungie.Tags.TagFile(tag_path))
+        using (var tagFile = new TagFile(tag_path))
         {
             // Spawns Section
             int i = 0;
@@ -395,11 +395,11 @@ class MB_Zones
             int totalScenCount = 0;
 
             // Add respawn point scenery, if it doesn't already exist
-            if (((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).Elements.Count() != 0)
+            if (((TagFieldBlock)tagFile.Fields[21]).Elements.Count() != 0)
             {
-                foreach (var scen_type in ((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).Elements)
+                foreach (var scen_type in ((TagFieldBlock)tagFile.Fields[21]).Elements)
                 {
-                    if (((Bungie.Tags.TagFieldReference)scen_type.Fields[0]).Path == respawn_scen_path)
+                    if (((TagFieldReference)scen_type.Fields[0]).Path == respawn_scen_path)
                     {
                         // Respawn point scenery already in palette, set index
                         respawn_scen_index = temp_index;
@@ -411,9 +411,9 @@ class MB_Zones
                 if (respawn_found == false)
                 {
                     // Respawn point is not in the palette, add it and set the index
-                    respawn_scen_index = ((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).Elements.Count();
-                    ((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).AddElement();
-                    var scen_tag = (Bungie.Tags.TagFieldReference)((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).Elements[respawn_scen_index].Fields[0];
+                    respawn_scen_index = ((TagFieldBlock)tagFile.Fields[21]).Elements.Count();
+                    ((TagFieldBlock)tagFile.Fields[21]).AddElement();
+                    var scen_tag = (TagFieldReference)((TagFieldBlock)tagFile.Fields[21]).Elements[respawn_scen_index].Fields[0];
                     scen_tag.Path = respawn_scen_path;
                     totalScenCount++;
                 }
@@ -421,8 +421,8 @@ class MB_Zones
             else
             {
                 Console.WriteLine("No existing sceneries, adding respawn point");
-                ((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).AddElement();
-                var scen_tag = (Bungie.Tags.TagFieldReference)((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).Elements[0].Fields[0];
+                ((TagFieldBlock)tagFile.Fields[21]).AddElement();
+                var scen_tag = (TagFieldReference)((TagFieldBlock)tagFile.Fields[21]).Elements[0].Fields[0];
                 scen_tag.Path = respawn_scen_path;
                 totalScenCount++;
             }
@@ -432,31 +432,31 @@ class MB_Zones
             foreach (var spawn in spawn_data)
             {
                 // Add new
-                ((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).AddElement();
+                ((TagFieldBlock)tagFile.Fields[20]).AddElement();
 
                 // Type
-                var scen_type = (Bungie.Tags.TagFieldBlockIndex)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[1];
+                var scen_type = (TagFieldBlockIndex)((TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[1];
                 scen_type.Value = respawn_scen_index;
 
                 // Dropdown type and source (won't be valid without these)
-                var dropdown_type = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
-                var dropdown_source = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[3];
+                var dropdown_type = (TagFieldEnum)((TagFieldStruct)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
+                var dropdown_source = (TagFieldEnum)((TagFieldStruct)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[3];
                 dropdown_type.Value = 6; // 6 for scenery
                 dropdown_source.Value = 1; // 1 for editor
 
                 // Position
-                var y = ((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[4]).Elements[0].Fields[0].FieldName;
-                var xyz_pos = (Bungie.Tags.TagFieldElementArraySingle)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[4]).Elements[0].Fields[2];
+                var y = ((TagFieldStruct)((TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[4]).Elements[0].Fields[0].FieldName;
+                var xyz_pos = (TagFieldElementArraySingle)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[4]).Elements[0].Fields[2];
                 xyz_pos.Data = spawn.position_xyz.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
 
                 // Rotation
-                var rotation = (Bungie.Tags.TagFieldElementArraySingle)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[4]).Elements[0].Fields[3];
+                var rotation = (TagFieldElementArraySingle)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[4]).Elements[0].Fields[3];
                 string angle_xyz = spawn.facing_angle + ",0,0";
                 rotation.Data = angle_xyz.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
 
                 // Team
-                var z = ((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[7]).Elements[0].Fields[0].FieldName;
-                var team = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[7]).Elements[0].Fields[3];
+                var z = ((TagFieldStruct)((TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[7]).Elements[0].Fields[0].FieldName;
+                var team = (TagFieldEnum)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[7]).Elements[0].Fields[3];
                 team.Value = int.Parse(new string(spawn.team_enum.TakeWhile(c => c != ',').ToArray()));
 
 
@@ -478,10 +478,10 @@ class MB_Zones
                     // Equipment, check if palette entry exists first
                     Console.WriteLine("Adding " + weap_type + " equipment");
                     bool equip_entry_exists = false;
-                    foreach (var palette_entry in ((Bungie.Tags.TagFieldBlock)tagFile.Fields[27]).Elements)
+                    foreach (var palette_entry in ((TagFieldBlock)tagFile.Fields[27]).Elements)
                     {
                         var temp_type = weapMapping[weap_type];
-                        if (((Bungie.Tags.TagFieldReference)palette_entry.Fields[0]).Path == temp_type)
+                        if (((TagFieldReference)palette_entry.Fields[0]).Path == temp_type)
                         {
                             equip_entry_exists = true;
                         }
@@ -490,36 +490,36 @@ class MB_Zones
                     // Add palette entry if needed
                     if (!equip_entry_exists)
                     {
-                        int current_count = ((Bungie.Tags.TagFieldBlock)tagFile.Fields[27]).Elements.Count();
-                        ((Bungie.Tags.TagFieldBlock)tagFile.Fields[27]).AddElement();
-                        var equip_tag_ref = (Bungie.Tags.TagFieldReference)((Bungie.Tags.TagFieldBlock)tagFile.Fields[27]).Elements[current_count].Fields[0];
+                        int current_count = ((TagFieldBlock)tagFile.Fields[27]).Elements.Count();
+                        ((TagFieldBlock)tagFile.Fields[27]).AddElement();
+                        var equip_tag_ref = (TagFieldReference)((TagFieldBlock)tagFile.Fields[27]).Elements[current_count].Fields[0];
                         equip_tag_ref.Path = weapMapping[weap_type];
                         weapPaletteMapping.Add(weap_type, current_count);
                     }
 
                     // Now add the equipment itself
-                    int equip_count = ((Bungie.Tags.TagFieldBlock)tagFile.Fields[26]).Elements.Count();
-                    ((Bungie.Tags.TagFieldBlock)tagFile.Fields[26]).AddElement(); // Add new weapon entry
+                    int equip_count = ((TagFieldBlock)tagFile.Fields[26]).Elements.Count();
+                    ((TagFieldBlock)tagFile.Fields[26]).AddElement(); // Add new weapon entry
 
                     // XYZ
-                    var equip_xyz = (Bungie.Tags.TagFieldElementArraySingle)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[4]).Elements[0].Fields[2];
+                    var equip_xyz = (TagFieldElementArraySingle)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[4]).Elements[0].Fields[2];
                     equip_xyz.Data = weapon.weap_xyz.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
 
                     // Rotation
-                    var equip_orient = (Bungie.Tags.TagFieldElementArraySingle)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[4]).Elements[0].Fields[3];
+                    var equip_orient = (TagFieldElementArraySingle)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[4]).Elements[0].Fields[3];
                     equip_orient.Data = weapon.weap_orient.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
 
                     // Type
-                    var equip_tag = (Bungie.Tags.TagFieldBlockIndex)((Bungie.Tags.TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[1];
+                    var equip_tag = (TagFieldBlockIndex)((TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[1];
                     equip_tag.Value = weapPaletteMapping[weap_type];
 
                     // Spawn timer
-                    var equip_stime = (Bungie.Tags.TagFieldElementInteger)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[6]).Elements[0].Fields[8];
+                    var equip_stime = (TagFieldElementInteger)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[6]).Elements[0].Fields[8];
                     equip_stime.Data = uint.Parse(weapon.spawn_time);
 
                     // Dropdown type and source (won't be valid without these)
-                    var dropdown_type = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
-                    var dropdown_source = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[3];
+                    var dropdown_type = (TagFieldEnum)((TagFieldStruct)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
+                    var dropdown_source = (TagFieldEnum)((TagFieldStruct)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[3];
                     dropdown_type.Value = 3; // 2 for equipment
                     dropdown_source.Value = 1; // 1 for editor
 
@@ -536,10 +536,10 @@ class MB_Zones
                     // Weapon, check if palette entry exists first
                     Console.WriteLine("Adding " + weap_type + " weapon");
                     bool weap_entry_exists = false;
-                    foreach (var palette_entry in ((Bungie.Tags.TagFieldBlock)tagFile.Fields[29]).Elements)
+                    foreach (var palette_entry in ((TagFieldBlock)tagFile.Fields[29]).Elements)
                     {
                         var temp_type = weapMapping[weap_type];
-                        if (((Bungie.Tags.TagFieldReference)palette_entry.Fields[0]).Path == temp_type)
+                        if (((TagFieldReference)palette_entry.Fields[0]).Path == temp_type)
                         {
                             weap_entry_exists = true;
                         }
@@ -548,36 +548,36 @@ class MB_Zones
                     // Add palette entry if needed
                     if (!weap_entry_exists)
                     {
-                        int current_count = ((Bungie.Tags.TagFieldBlock)tagFile.Fields[29]).Elements.Count();
-                        ((Bungie.Tags.TagFieldBlock)tagFile.Fields[29]).AddElement();
-                        var weap_tag_ref = (Bungie.Tags.TagFieldReference)((Bungie.Tags.TagFieldBlock)tagFile.Fields[29]).Elements[current_count].Fields[0];
+                        int current_count = ((TagFieldBlock)tagFile.Fields[29]).Elements.Count();
+                        ((TagFieldBlock)tagFile.Fields[29]).AddElement();
+                        var weap_tag_ref = (TagFieldReference)((TagFieldBlock)tagFile.Fields[29]).Elements[current_count].Fields[0];
                         weap_tag_ref.Path = weapMapping[weap_type];
                         weapPaletteMapping.Add(weap_type, current_count);
                     }
 
                     // Now add the weapon itself
-                    int weapon_count = ((Bungie.Tags.TagFieldBlock)tagFile.Fields[28]).Elements.Count();
-                    ((Bungie.Tags.TagFieldBlock)tagFile.Fields[28]).AddElement(); // Add new weapon entry
+                    int weapon_count = ((TagFieldBlock)tagFile.Fields[28]).Elements.Count();
+                    ((TagFieldBlock)tagFile.Fields[28]).AddElement(); // Add new weapon entry
 
                     // XYZ
-                    var weap_xyz = (Bungie.Tags.TagFieldElementArraySingle)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[4]).Elements[0].Fields[2];
+                    var weap_xyz = (TagFieldElementArraySingle)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[4]).Elements[0].Fields[2];
                     weap_xyz.Data = weapon.weap_xyz.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
 
                     // Rotation
-                    var weap_orient = (Bungie.Tags.TagFieldElementArraySingle)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[4]).Elements[0].Fields[3];
+                    var weap_orient = (TagFieldElementArraySingle)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[4]).Elements[0].Fields[3];
                     weap_orient.Data = weapon.weap_orient.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
 
                     // Type
-                    var weap_tag = (Bungie.Tags.TagFieldBlockIndex)((Bungie.Tags.TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[1];
+                    var weap_tag = (TagFieldBlockIndex)((TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[1];
                     weap_tag.Value = weapPaletteMapping[weap_type];
 
                     // Spawn timer
-                    var weap_stime = (Bungie.Tags.TagFieldElementInteger)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[7]).Elements[0].Fields[8];
+                    var weap_stime = (TagFieldElementInteger)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[7]).Elements[0].Fields[8];
                     weap_stime.Data = uint.Parse(weapon.spawn_time);
 
                     // Dropdown type and source (won't be valid without these)
-                    var dropdown_type = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
-                    var dropdown_source = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[3];
+                    var dropdown_type = (TagFieldEnum)((TagFieldStruct)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
+                    var dropdown_source = (TagFieldEnum)((TagFieldStruct)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[3];
                     dropdown_type.Value = 2; // 2 for weapon
                     dropdown_source.Value = 1; // 1 for editor
                 }
@@ -589,7 +589,7 @@ class MB_Zones
             {
                 // Check if current type exists in palette
                 bool type_exists_already = false;
-                foreach (var palette_entry in ((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).Elements)
+                foreach (var palette_entry in ((TagFieldBlock)tagFile.Fields[21]).Elements)
                 {
                     var x = ((TagFieldReference)palette_entry.Fields[0]).Path;
                     if (x == scen_type)
@@ -614,28 +614,28 @@ class MB_Zones
             {
                 int current_count = ((TagFieldBlock)tagFile.Fields[20]).Elements.Count();
                 ((TagFieldBlock)tagFile.Fields[20]).AddElement();
-                var type_ref = (Bungie.Tags.TagFieldBlockIndex)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[1];
+                var type_ref = (TagFieldBlockIndex)((TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[1];
                 int index = int.Parse(scenery.scen_type.ToString()) + totalScenCount;
                 type_ref.Value = int.Parse(scenery.scen_type) + totalScenCount;
 
                 // Dropdown type and source (won't be valid without these)
-                var dropdown_type = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
-                var dropdown_source = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[3];
+                var dropdown_type = (TagFieldEnum)((TagFieldStruct)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
+                var dropdown_source = (TagFieldEnum)((TagFieldStruct)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[3];
                 dropdown_type.Value = 6; // 6 for scenery
                 dropdown_source.Value = 1; // 1 for editor
 
                 // Position
-                var y = ((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[4]).Elements[0].Fields[0].FieldName;
-                var xyz_pos = (Bungie.Tags.TagFieldElementArraySingle)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[4]).Elements[0].Fields[2];
+                var y = ((TagFieldStruct)((TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[4]).Elements[0].Fields[0].FieldName;
+                var xyz_pos = (TagFieldElementArraySingle)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[4]).Elements[0].Fields[2];
                 xyz_pos.Data = scenery.scen_xyz.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
 
                 // Rotation
-                var rotation = (Bungie.Tags.TagFieldElementArraySingle)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[4]).Elements[0].Fields[3];
+                var rotation = (TagFieldElementArraySingle)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[4]).Elements[0].Fields[3];
                 rotation.Data = scenery.scen_orient.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
 
                 // Variant
-                var z = ((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[5]).Elements[0].Fields[0].FieldName;
-                var variant = (Bungie.Tags.TagFieldElementStringID)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[5]).Elements[0].Fields[0];
+                var z = ((TagFieldStruct)((TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[5]).Elements[0].Fields[0].FieldName;
+                var variant = (TagFieldElementStringID)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[5]).Elements[0].Fields[0];
                 variant.Data = scenery.scen_vrnt;
             }
 
@@ -646,23 +646,23 @@ class MB_Zones
                 ((TagFieldBlock)tagFile.Fields[55]).AddElement();
 
                 // Name
-                var name = (Bungie.Tags.TagFieldElementStringID)((Bungie.Tags.TagFieldBlock)tagFile.Fields[55]).Elements[current_count].Fields[0];
+                var name = (TagFieldElementStringID)((TagFieldBlock)tagFile.Fields[55]).Elements[current_count].Fields[0];
                 name.Data = vol.vol_name;
 
                 // Forward
-                var fwd = (Bungie.Tags.TagFieldElementArraySingle)((Bungie.Tags.TagFieldBlock)tagFile.Fields[55]).Elements[current_count].Fields[4];
+                var fwd = (TagFieldElementArraySingle)((TagFieldBlock)tagFile.Fields[55]).Elements[current_count].Fields[4];
                 fwd.Data = vol.vol_fwd.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
 
                 // Up
-                var up = (Bungie.Tags.TagFieldElementArraySingle)((Bungie.Tags.TagFieldBlock)tagFile.Fields[55]).Elements[current_count].Fields[5];
+                var up = (TagFieldElementArraySingle)((TagFieldBlock)tagFile.Fields[55]).Elements[current_count].Fields[5];
                 up.Data = vol.vol_up.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
 
                 // Position
-                var xyz = (Bungie.Tags.TagFieldElementArraySingle)((Bungie.Tags.TagFieldBlock)tagFile.Fields[55]).Elements[current_count].Fields[6];
+                var xyz = (TagFieldElementArraySingle)((TagFieldBlock)tagFile.Fields[55]).Elements[current_count].Fields[6];
                 xyz.Data = vol.vol_xyz.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
 
                 // Extents
-                var ext = (Bungie.Tags.TagFieldElementArraySingle)((Bungie.Tags.TagFieldBlock)tagFile.Fields[55]).Elements[current_count].Fields[7];
+                var ext = (TagFieldElementArraySingle)((TagFieldBlock)tagFile.Fields[55]).Elements[current_count].Fields[7];
                 ext.Data = vol.vol_ext.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
             }
 
