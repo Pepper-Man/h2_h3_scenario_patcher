@@ -99,6 +99,21 @@ class MB_Zones
 
         string h3ek_path = scen_path.Substring(0, scen_path.IndexOf("H3EK") + "H3EK".Length);
 
+        // Create scenario backup
+        string backup_folderpath = Path.GetDirectoryName(scen_path) + @"\scenario_backup";
+        Directory.CreateDirectory(backup_folderpath);
+        string backup_filepath = Path.Combine(backup_folderpath, scen_path.Split('\\').Last());
+        
+        if(!File.Exists(backup_filepath))
+        {
+            File.Copy(scen_path, backup_filepath);
+            Console.WriteLine("Backup created successfully.");
+        }
+        else
+        {
+            Console.WriteLine("Backup already exists.");
+        }
+
         ManagedBlamSystem.InitializeProject(InitializationType.TagsOnly, h3ek_path);
         Convert_XML(xml_path, h3ek_path, scen_path);
     }
