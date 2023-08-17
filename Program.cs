@@ -149,7 +149,7 @@ class MB_Zones
                 }
             }
 
-            Console.WriteLine("Modified file saved successfully.\n\nPreparing to patch tag data.\n\nLoaded zones:\n");
+            Console.WriteLine("Modified file saved successfully.\n\nPreparing to patch tag data:\n");
         }
         catch (Exception ex)
         {
@@ -528,7 +528,7 @@ class MB_Zones
                 if (weap_type == "")
                 {
                     // All games entries, ignore
-                    Console.WriteLine("Ignoring blank weapon collections");
+                    Console.WriteLine("Ignoring blank weapon collection");
                     continue;
                 }
                 else
