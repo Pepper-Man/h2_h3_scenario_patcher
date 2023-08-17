@@ -556,6 +556,26 @@ class MB_Zones
                 var type_ref = (Bungie.Tags.TagFieldBlockIndex)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[1];
                 int index = int.Parse(scenery.scen_type.ToString()) + totalScenCount;
                 type_ref.Value = int.Parse(scenery.scen_type) + totalScenCount;
+
+                // Dropdown type and source (won't be valid without these)
+                var dropdown_type = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
+                var dropdown_source = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[3];
+                dropdown_type.Value = 6; // 6 for scenery
+                dropdown_source.Value = 1; // 1 for editor
+
+                // Position
+                var y = ((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[4]).Elements[0].Fields[0].FieldName;
+                var xyz_pos = (Bungie.Tags.TagFieldElementArraySingle)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[4]).Elements[0].Fields[2];
+                xyz_pos.Data = scenery.scen_xyz.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
+
+                // Rotation
+                var rotation = (Bungie.Tags.TagFieldElementArraySingle)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[4]).Elements[0].Fields[3];
+                rotation.Data = scenery.scen_orient.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
+
+                // Variant
+                var z = ((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[5]).Elements[0].Fields[0].FieldName;
+                var variant = (Bungie.Tags.TagFieldElementStringID)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[5]).Elements[0].Fields[0];
+                variant.Data = scenery.scen_vrnt;
             }
 
             tagFile.Save();
