@@ -29,6 +29,14 @@ class WeapLoc
     public string weap_type { get; set; }
 }
 
+class Scenery
+{
+    public string scen_type { get; set; }
+    public string scen_xyz { get; set; }
+    public string scen_orient { get; set; }
+    public string scen_vrnt { get; set; }
+}
+
 
 class MB_Zones
 {
@@ -133,9 +141,13 @@ class MB_Zones
 
         XmlNodeList player_start_loc_block = root.SelectNodes(".//block[@name='player starting locations']");
         XmlNodeList weapon_placements_block = root.SelectNodes(".//block[@name='netgame equipment']");
+        XmlNodeList scen_palette_block = root.SelectNodes(".//block[@name='scenery palette']");
+        XmlNodeList scen_entries_block = root.SelectNodes(".//block[@name='scenery']");
 
         List<StartLoc> all_starting_locs = new List<StartLoc>();
         List<WeapLoc> all_weapon_locs = new List<WeapLoc>();
+        List<TagPath> all_scen_types = new List<TagPath>();
+        List<Scenery> all_scen_entries = new List<Scenery>();
 
         foreach (XmlNode location in player_start_loc_block)
         {
@@ -219,10 +231,66 @@ class MB_Zones
             }
         }
 
-        ManagedBlamHandler(all_starting_locs, all_weapon_locs, h3ek_path, scen_path);
+        foreach (XmlNode location in scen_palette_block)
+        {
+            bool scen_end = false;
+            int i = 0;
+            while (!scen_end)
+            {
+                string search_string = "./element[@index='" + i + "']";
+                XmlNode element = location.SelectSingleNode(search_string);
+                if (element != null)
+                {
+                    string scen_type = element.SelectSingleNode("./tag_reference[@name='name']").InnerText.Trim();
+                    all_scen_types.Add(TagPath.FromPathAndType(scen_type, "scen*"));
+                    i++;
+                }
+                else
+                {
+                    scen_end = true;
+                    Console.WriteLine("Finished processing scenery palette data.");
+                }
+            }
+        }
+
+        foreach (XmlNode location in scen_entries_block)
+        {
+            bool scen_end = false;
+            int i = 0;
+            while (!scen_end)
+            {
+                string search_string = "./element[@index='" + i + "']";
+                XmlNode element = location.SelectSingleNode(search_string);
+                if (element != null)
+                {
+                    string type = element.SelectSingleNode("./block_index[@name='short block index']").Attributes["index"].Value.ToString();
+                    string xyz = element.SelectSingleNode("./field[@name='position']").InnerText.Trim();
+                    string orient = element.SelectSingleNode("./field[@name='rotation']").InnerText.Trim();
+                    string variant = element.SelectSingleNode("./field[@name='variant name']").InnerText.Trim();
+
+                    all_scen_entries.Add(new Scenery
+                    {
+                        scen_type = type,
+                        scen_xyz = xyz,
+                        scen_orient = orient,
+                        scen_vrnt = variant
+                    });
+
+                    i++;
+                }
+                else
+                {
+                    scen_end = true;
+                    Console.WriteLine("Finished processing scenery placement data.");
+                }
+            }
+        }
+
+
+        ManagedBlamHandler(all_starting_locs, all_weapon_locs, all_scen_types, all_scen_entries, h3ek_path, scen_path);
     }
 
-    static void ManagedBlamHandler(List<StartLoc> spawn_data, List<WeapLoc> weap_data, string h3ek_path, string scen_path)
+    static void ManagedBlamHandler(List<StartLoc> spawn_data, List<WeapLoc> weap_data, List<TagPath> all_scen_types, List<Scenery> all_scen_entries, string h3ek_path, string scen_path)
     {
         // Weapons dictionary
         Dictionary<string, Bungie.Tags.TagPath> weapMapping = new Dictionary<string, Bungie.Tags.TagPath>
@@ -263,6 +331,7 @@ class MB_Zones
             int i = 0;
             int temp_index = 0;
             bool respawn_found = false;
+            int totalScenCount = 0;
 
             // Add respawn point scenery, if it doesn't already exist
             if (((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).Elements.Count() != 0)
@@ -283,8 +352,9 @@ class MB_Zones
                     // Respawn point is not in the palette, add it and set the index
                     respawn_scen_index = ((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).Elements.Count();
                     ((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).AddElement();
-                    var scen_tag = (Bungie.Tags.TagFieldReference)((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).Elements[0].Fields[0];
+                    var scen_tag = (Bungie.Tags.TagFieldReference)((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).Elements[respawn_scen_index].Fields[0];
                     scen_tag.Path = respawn_scen_path;
+                    totalScenCount++;
                 }
             }
             else
@@ -293,6 +363,7 @@ class MB_Zones
                 ((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).AddElement();
                 var scen_tag = (Bungie.Tags.TagFieldReference)((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).Elements[0].Fields[0];
                 scen_tag.Path = respawn_scen_path;
+                totalScenCount++;
             }
             
 
@@ -304,7 +375,7 @@ class MB_Zones
 
                 // Type
                 var scen_type = (Bungie.Tags.TagFieldBlockIndex)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[1];
-                scen_type.Value = respawn_scen_index; // Assuming 0 is the index of respawn scenery
+                scen_type.Value = respawn_scen_index;
 
                 // Dropdown type and source (won't be valid without these)
                 var dropdown_type = (Bungie.Tags.TagFieldEnum)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[i].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
@@ -331,7 +402,7 @@ class MB_Zones
                 i++;
             }
 
-            Dictionary<string, int> paletteMapping = new Dictionary<string, int>();
+            Dictionary<string, int> weapPaletteMapping = new Dictionary<string, int>();
 
             // Weapons Section
             foreach (var weapon in weap_data)
@@ -362,7 +433,7 @@ class MB_Zones
                         ((Bungie.Tags.TagFieldBlock)tagFile.Fields[27]).AddElement();
                         var equip_tag_ref = (Bungie.Tags.TagFieldReference)((Bungie.Tags.TagFieldBlock)tagFile.Fields[27]).Elements[current_count].Fields[0];
                         equip_tag_ref.Path = weapMapping[weap_type];
-                        paletteMapping.Add(weap_type, current_count);
+                        weapPaletteMapping.Add(weap_type, current_count);
                     }
 
                     // Now add the equipment itself
@@ -379,7 +450,7 @@ class MB_Zones
 
                     // Type
                     var equip_tag = (Bungie.Tags.TagFieldBlockIndex)((Bungie.Tags.TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[1];
-                    equip_tag.Value = paletteMapping[weap_type];
+                    equip_tag.Value = weapPaletteMapping[weap_type];
 
                     // Spawn timer
                     var equip_stime = (Bungie.Tags.TagFieldElementInteger)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[6]).Elements[0].Fields[8];
@@ -420,7 +491,7 @@ class MB_Zones
                         ((Bungie.Tags.TagFieldBlock)tagFile.Fields[29]).AddElement();
                         var weap_tag_ref = (Bungie.Tags.TagFieldReference)((Bungie.Tags.TagFieldBlock)tagFile.Fields[29]).Elements[current_count].Fields[0];
                         weap_tag_ref.Path = weapMapping[weap_type];
-                        paletteMapping.Add(weap_type, current_count);
+                        weapPaletteMapping.Add(weap_type, current_count);
                     }
 
                     // Now add the weapon itself
@@ -437,7 +508,7 @@ class MB_Zones
 
                     // Type
                     var weap_tag = (Bungie.Tags.TagFieldBlockIndex)((Bungie.Tags.TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[1];
-                    weap_tag.Value = paletteMapping[weap_type];
+                    weap_tag.Value = weapPaletteMapping[weap_type];
 
                     // Spawn timer
                     var weap_stime = (Bungie.Tags.TagFieldElementInteger)((Bungie.Tags.TagFieldStruct)((Bungie.Tags.TagFieldBlock)tagFile.Fields[28]).Elements[weapon_count].Fields[7]).Elements[0].Fields[8];
@@ -449,6 +520,42 @@ class MB_Zones
                     dropdown_type.Value = 2; // 2 for weapon
                     dropdown_source.Value = 1; // 1 for editor
                 }
+            }
+
+            // Scenery Section - the idea is to place blank scenery with bad references so they can be easily changed to ported versions by the user
+
+            foreach (TagPath scen_type in all_scen_types)
+            {
+                // Check if current type exists in palette
+                bool type_exists_already = false;
+                foreach (var palette_entry in ((Bungie.Tags.TagFieldBlock)tagFile.Fields[21]).Elements)
+                {
+                    var x = ((TagFieldReference)palette_entry.Fields[0]).Path;
+                    if (x == scen_type)
+                    {
+                        type_exists_already = true;
+                        break;
+                    }
+                }
+
+                // Add palette entry if needed
+                if (!type_exists_already)
+                {
+                    int current_count = ((TagFieldBlock)tagFile.Fields[21]).Elements.Count();
+                    ((TagFieldBlock)tagFile.Fields[21]).AddElement();
+                    var scen_type_ref = (TagFieldReference)((TagFieldBlock)tagFile.Fields[21]).Elements[current_count].Fields[0];
+                    scen_type_ref.Path = scen_type;
+                }
+            }
+
+            // Now add all of the scenery placements
+            foreach (Scenery scenery in all_scen_entries)
+            {
+                int current_count = ((TagFieldBlock)tagFile.Fields[20]).Elements.Count();
+                ((TagFieldBlock)tagFile.Fields[20]).AddElement();
+                var type_ref = (Bungie.Tags.TagFieldBlockIndex)((Bungie.Tags.TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[1];
+                int index = int.Parse(scenery.scen_type.ToString()) + totalScenCount;
+                type_ref.Value = int.Parse(scenery.scen_type) + totalScenCount;
             }
 
             tagFile.Save();
