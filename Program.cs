@@ -57,6 +57,7 @@ class Vehicle
 class Crate
 {
     public string crate_type { get; set; }
+    public string crate_name { get; set; }
     public string crate_xyz { get; set; }
     public string crate_orient { get; set; }
     public string crate_vrnt { get; set; }
@@ -188,6 +189,7 @@ class MB_Zones
         XmlNodeList vehi_entries_block = root.SelectNodes(".//block[@name='vehicles']");
         XmlNodeList crate_palette_block = root.SelectNodes(".//block[@name='crate palette']");
         XmlNodeList crate_entries_block = root.SelectNodes(".//block[@name='crates']");
+        XmlNodeList object_names_block = root.SelectNodes(".//block[@name='object names']");
 
         List<StartLoc> all_starting_locs = new List<StartLoc>();
         List<WeapLoc> all_weapon_locs = new List<WeapLoc>();
@@ -198,6 +200,27 @@ class MB_Zones
         List<Vehicle> all_vehi_entries = new List<Vehicle>();
         List<TagPath> all_crate_types = new List<TagPath>();
         List<Crate> all_crate_entries = new List<Crate>();
+        List<string> all_object_names = new List<string>();
+
+        foreach (XmlNode name in object_names_block)
+        {
+            bool names_end = false;
+            int i = 0;
+            while (!names_end)
+            {
+                XmlNode element = name.SelectSingleNode("./element[@index='" + i + "']");
+                if (element != null)
+                {
+                    all_object_names.Add(element.SelectSingleNode("./field[@name='name']").InnerText.Trim());
+                    i++;
+                }
+                else
+                {
+                    names_end = true;
+                    Console.WriteLine("Finished processing object name data.");
+                }
+            } 
+        }
 
         foreach (XmlNode location in player_start_loc_block)
         {
@@ -459,6 +482,7 @@ class MB_Zones
                 if (element != null)
                 {
                     string type = element.SelectSingleNode("./block_index[@name='short block index']").Attributes["index"].Value.ToString();
+                    string name = element.SelectSingleNode("./block_index[@type='name']").Attributes["index"].Value.ToString();
                     string xyz = element.SelectSingleNode("./field[@name='position']").InnerText.Trim();
                     string orient = element.SelectSingleNode("./field[@name='rotation']").InnerText.Trim();
                     string variant = element.SelectSingleNode("./field[@name='variant name']").InnerText.Trim();
@@ -466,6 +490,7 @@ class MB_Zones
                     all_crate_entries.Add(new Crate
                     {
                         crate_type = type,
+                        crate_name = name,
                         crate_xyz = xyz,
                         crate_orient = orient,
                         crate_vrnt = variant
@@ -482,10 +507,10 @@ class MB_Zones
         }
 
 
-        ManagedBlamHandler(all_starting_locs, all_weapon_locs, all_scen_types, all_scen_entries, all_trig_vols, all_vehi_types, all_vehi_entries, h3ek_path, scen_path);
+        ManagedBlamHandler(all_object_names, all_starting_locs, all_weapon_locs, all_scen_types, all_scen_entries, all_trig_vols, all_vehi_types, all_vehi_entries, all_crate_types, all_crate_entries, h3ek_path, scen_path);
     }
 
-    static void ManagedBlamHandler(List<StartLoc> spawn_data, List<WeapLoc> weap_data, List<TagPath> all_scen_types, List<Scenery> all_scen_entries, List<TrigVol> all_trig_vols, List<TagPath> all_vehi_types, List<Vehicle> all_vehi_entries, string h3ek_path, string scen_path)
+    static void ManagedBlamHandler(List<string> all_object_names, List<StartLoc> spawn_data, List<WeapLoc> weap_data, List<TagPath> all_scen_types, List<Scenery> all_scen_entries, List<TrigVol> all_trig_vols, List<TagPath> all_vehi_types, List<Vehicle> all_vehi_entries, List<TagPath> all_crate_types, List<Crate> all_crate_entries, string h3ek_path, string scen_path)
     {
         // Weapons dictionary
         Dictionary<string, TagPath> weapMapping = new Dictionary<string, TagPath>
@@ -522,6 +547,16 @@ class MB_Zones
 
         using (var tagFile = new TagFile(tag_path))
         {
+            // Object names section
+            foreach (var name in all_object_names)
+            {
+                // Add new
+                int count = ((TagFieldBlock)tagFile.Fields[19]).Elements.Count();
+                ((TagFieldBlock)tagFile.Fields[19]).AddElement();
+                var name_field = (TagFieldElementStringNormal)((TagFieldBlock)tagFile.Fields[19]).Elements[count].Fields[0];
+                name_field.Data = name;
+            }
+
             // Spawns Section
             int i = 0;
             int temp_index = 0;
@@ -884,7 +919,62 @@ class MB_Zones
                 {
                     name.Data = "territories";
                 }
-                
+            }
+
+            foreach (TagPath crate_type in all_crate_types)
+            {
+                // Check if current type exists in palette
+                bool type_exists_already = false;
+                foreach (var palette_entry in ((TagFieldBlock)tagFile.Fields[119]).Elements)
+                {
+                    var x = ((TagFieldReference)palette_entry.Fields[0]).Path;
+                    if (x == crate_type)
+                    {
+                        type_exists_already = true;
+                        break;
+                    }
+                }
+
+                // Add palette entry if needed
+                if (!type_exists_already)
+                {
+                    int current_count = ((TagFieldBlock)tagFile.Fields[119]).Elements.Count();
+                    ((TagFieldBlock)tagFile.Fields[119]).AddElement();
+                    var crate_type_ref = (TagFieldReference)((TagFieldBlock)tagFile.Fields[119]).Elements[current_count].Fields[0];
+                    crate_type_ref.Path = crate_type;
+                }
+            }
+
+            foreach (Crate crate in all_crate_entries)
+            {
+                int current_count = ((TagFieldBlock)tagFile.Fields[118]).Elements.Count();
+                ((TagFieldBlock)tagFile.Fields[118]).AddElement();
+                var type_ref = (TagFieldBlockIndex)((TagFieldBlock)tagFile.Fields[118]).Elements[current_count].Fields[1];
+                type_ref.Value = int.Parse(crate.crate_type);
+
+                // Name
+                var name_field = (TagFieldBlockIndex)((TagFieldBlock)tagFile.Fields[118]).Elements[current_count].Fields[3];
+                name_field.Value = int.Parse(crate.crate_name);
+
+                // Dropdown type and source (won't be valid without these)
+                var dropdown_type = (TagFieldEnum)((TagFieldStruct)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[118]).Elements[current_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
+                var dropdown_source = (TagFieldEnum)((TagFieldStruct)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[118]).Elements[current_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[3];
+                dropdown_type.Value = 10; // 1 for crate
+                dropdown_source.Value = 1; // 1 for editor
+
+                // Position
+                var y = ((TagFieldStruct)((TagFieldBlock)tagFile.Fields[118]).Elements[current_count].Fields[4]).Elements[0].Fields[0].FieldName;
+                var xyz_pos = (TagFieldElementArraySingle)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[118]).Elements[current_count].Fields[4]).Elements[0].Fields[2];
+                xyz_pos.Data = crate.crate_xyz.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
+
+                // Rotation
+                var rotation = (TagFieldElementArraySingle)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[118]).Elements[current_count].Fields[4]).Elements[0].Fields[3];
+                rotation.Data = crate.crate_orient.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
+
+                // Variant
+                var z = ((TagFieldStruct)((TagFieldBlock)tagFile.Fields[118]).Elements[current_count].Fields[5]).Elements[0].Fields[0].FieldName;
+                var variant = (TagFieldElementStringID)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[118]).Elements[current_count].Fields[5]).Elements[0].Fields[0];
+                variant.Data = crate.crate_vrnt;
             }
 
             tagFile.Save();
