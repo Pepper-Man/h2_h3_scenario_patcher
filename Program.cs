@@ -54,6 +54,14 @@ class Vehicle
     public string vehi_vrnt { get; set; }
 }
 
+class Crate
+{
+    public string crate_type { get; set; }
+    public string crate_xyz { get; set; }
+    public string crate_orient { get; set; }
+    public string crate_vrnt { get; set; }
+}
+
 
 class MB_Zones
 {
@@ -178,6 +186,8 @@ class MB_Zones
         XmlNodeList trig_vol_block = root.SelectNodes(".//block[@name='trigger volumes']");
         XmlNodeList vehi_palette_block = root.SelectNodes(".//block[@name='vehicle palette']");
         XmlNodeList vehi_entries_block = root.SelectNodes(".//block[@name='vehicles']");
+        XmlNodeList crate_palette_block = root.SelectNodes(".//block[@name='crate palette']");
+        XmlNodeList crate_entries_block = root.SelectNodes(".//block[@name='crates']");
 
         List<StartLoc> all_starting_locs = new List<StartLoc>();
         List<WeapLoc> all_weapon_locs = new List<WeapLoc>();
@@ -186,6 +196,8 @@ class MB_Zones
         List<TrigVol> all_trig_vols = new List<TrigVol>();
         List<TagPath> all_vehi_types = new List<TagPath>();
         List<Vehicle> all_vehi_entries = new List<Vehicle>();
+        List<TagPath> all_crate_types = new List<TagPath>();
+        List<Crate> all_crate_entries = new List<Crate>();
 
         foreach (XmlNode location in player_start_loc_block)
         {
@@ -410,6 +422,61 @@ class MB_Zones
                 {
                     vehi_end = true;
                     Console.WriteLine("Finished processing vehicle placement data.");
+                }
+            }
+        }
+
+        foreach (XmlNode crate in crate_palette_block)
+        {
+            bool crates_end = false;
+            int i = 0;
+            while (!crates_end)
+            {
+                string search_string = "./element[@index='" + i + "']";
+                XmlNode element = crate.SelectSingleNode(search_string);
+                if (element != null)
+                {
+                    string vehi_type = element.SelectSingleNode("./tag_reference[@name='name']").InnerText.Trim();
+                    all_crate_types.Add(TagPath.FromPathAndType(vehi_type, "bloc*"));
+                    i++;
+                }
+                else
+                {
+                    crates_end = true;
+                    Console.WriteLine("Finished processing crate palette data.");
+                }
+            }
+        }
+
+        foreach (XmlNode crate in crate_entries_block)
+        {
+            bool crates_end = false;
+            int i = 0;
+            while (!crates_end)
+            {
+                string search_string = "./element[@index='" + i + "']";
+                XmlNode element = crate.SelectSingleNode(search_string);
+                if (element != null)
+                {
+                    string type = element.SelectSingleNode("./block_index[@name='short block index']").Attributes["index"].Value.ToString();
+                    string xyz = element.SelectSingleNode("./field[@name='position']").InnerText.Trim();
+                    string orient = element.SelectSingleNode("./field[@name='rotation']").InnerText.Trim();
+                    string variant = element.SelectSingleNode("./field[@name='variant name']").InnerText.Trim();
+
+                    all_crate_entries.Add(new Crate
+                    {
+                        crate_type = type,
+                        crate_xyz = xyz,
+                        crate_orient = orient,
+                        crate_vrnt = variant
+                    });
+
+                    i++;
+                }
+                else
+                {
+                    crates_end = true;
+                    Console.WriteLine("Finished processing crate placement data.");
                 }
             }
         }
@@ -786,6 +853,38 @@ class MB_Zones
                 var z = ((TagFieldStruct)((TagFieldBlock)tagFile.Fields[24]).Elements[current_count].Fields[5]).Elements[0].Fields[0].FieldName;
                 var variant = (TagFieldElementStringID)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[24]).Elements[current_count].Fields[5]).Elements[0].Fields[0];
                 variant.Data = vehicle.vehi_vrnt;
+            }
+
+            // Crates section
+
+            // Begin with creating the editor folders
+            for (int z = 0; z < 5; z++)
+            {
+                int current_count = ((TagFieldBlock)tagFile.Fields[125]).Elements.Count();
+                ((TagFieldBlock)tagFile.Fields[125]).AddElement();
+                // Name
+                var name = (TagFieldElementLongString)((TagFieldBlock)tagFile.Fields[125]).Elements[current_count].Fields[1];
+                if (z == 0)
+                {
+                    name.Data = "oddball";
+                }
+                else if (z == 1)
+                {
+                    name.Data = "ctf";
+                }
+                else if (z == 2)
+                {
+                    name.Data = "koth";
+                }
+                else if (z == 3)
+                {
+                    name.Data = "assault";
+                }
+                else if (z == 4)
+                {
+                    name.Data = "territories";
+                }
+                
             }
 
             tagFile.Save();
