@@ -1,6 +1,7 @@
 ﻿using Bungie;
 using Bungie.Tags;
 using System;
+using System.Numerics;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.IO;
@@ -73,6 +74,14 @@ class NetFlag
     public string netflag_orient { get; set; }
     public string netflag_type { get; set; }
     public string netflag_team { get; set; }
+}
+
+class Decal
+{
+    public string decal_type { get; set; }
+    public string decal_yaw { get; set; }
+    public string decal_pitch { get; set; }
+    public string decal_xyz { get; set; }
 }
 
 
@@ -203,6 +212,8 @@ class MB_Zones
         XmlNodeList crate_entries_block = root.SelectNodes(".//block[@name='crates']");
         XmlNodeList object_names_block = root.SelectNodes(".//block[@name='object names']");
         XmlNodeList netgame_flags_block = root.SelectNodes(".//block[@name='netgame flags']");
+        XmlNodeList decal_palette_block = root.SelectNodes(".//block[@name='decal palette']");
+        XmlNodeList decal_entries_block = root.SelectNodes(".//block[@name='decals']");
 
         List<StartLoc> all_starting_locs = new List<StartLoc>();
         List<WeapLoc> all_weapon_locs = new List<WeapLoc>();
@@ -215,6 +226,8 @@ class MB_Zones
         List<Crate> all_crate_entries = new List<Crate>();
         List<string> all_object_names = new List<string>();
         List<NetFlag> all_netgame_flags = new List<NetFlag>();
+        List<Decal> all_dec_entries = new List<Decal>();
+        List<TagPath> all_dec_types = new List<TagPath>();
 
         foreach (XmlNode name in object_names_block)
         {
@@ -574,10 +587,65 @@ class MB_Zones
             }
         }
 
-        ManagedBlamHandler(all_object_names, all_starting_locs, all_weapon_locs, all_scen_types, all_scen_entries, all_trig_vols, all_vehi_types, all_vehi_entries, all_crate_types, all_crate_entries, all_netgame_flags, h3ek_path, scen_path);
+        foreach (XmlNode entry in decal_palette_block)
+        {
+            bool decs_end = false;
+            int i = 0;
+            while (!decs_end)
+            {
+                string search_string = "./element[@index='" + i + "']";
+                XmlNode element = entry.SelectSingleNode(search_string);
+                if (element != null)
+                {
+                    string dec_type = element.SelectSingleNode("./tag_reference[@name='reference']").InnerText.Trim();
+                    all_dec_types.Add(TagPath.FromPathAndType(dec_type, "decs*"));
+                    i++;
+                }
+                else
+                {
+                    decs_end = true;
+                    Console.WriteLine("Finished processing decal palette data.");
+                }
+            }
+        }
+
+        foreach (XmlNode decal in decal_entries_block)
+        {
+            bool decs_end = false;
+            int i = 0;
+            while (!decs_end)
+            {
+                string search_string = "./element[@index='" + i + "']";
+                XmlNode element = decal.SelectSingleNode(search_string);
+                if (element != null)
+                {
+                    string type = element.SelectSingleNode("./block_index[@name='short block index']").Attributes["index"].Value.ToString();
+                    string yaw = element.SelectSingleNode("./field[@name='yaw[-127,127]']").InnerText.Trim();
+                    string pitch = element.SelectSingleNode("./field[@name='pitch[-127,127]']").InnerText.Trim();
+                    string xyz = element.SelectSingleNode("./field[@name='position']").InnerText.Trim();
+
+                    all_dec_entries.Add(new Decal
+                    {
+                        decal_type = type,
+                        decal_xyz = xyz,
+                        decal_pitch = pitch,
+                        decal_yaw = yaw
+                    });
+
+                    i++;
+                }
+                else
+                {
+                    decs_end = true;
+                    Console.WriteLine("Finished processing decal placement data.");
+                }
+            }
+        }
+
+        ManagedBlamHandler(all_object_names, all_starting_locs, all_weapon_locs, all_scen_types, all_scen_entries, all_trig_vols, all_vehi_types, all_vehi_entries, all_crate_types, all_crate_entries, all_netgame_flags, all_dec_types, all_dec_entries, h3ek_path, scen_path);
     }
 
-    static void ManagedBlamHandler(List<string> all_object_names, List<StartLoc> spawn_data, List<WeapLoc> weap_data, List<TagPath> all_scen_types, List<Scenery> all_scen_entries, List<TrigVol> all_trig_vols, List<TagPath> all_vehi_types, List<Vehicle> all_vehi_entries, List<TagPath> all_crate_types, List<Crate> all_crate_entries, List<NetFlag> all_netgame_flags, string h3ek_path, string scen_path)
+    static void ManagedBlamHandler(List<string> all_object_names, List<StartLoc> spawn_data, List<WeapLoc> weap_data, List<TagPath> all_scen_types, List<Scenery> all_scen_entries, List<TrigVol> all_trig_vols, List<TagPath> all_vehi_types, List<Vehicle> all_vehi_entries, List<TagPath> all_crate_types, List<Crate> all_crate_entries, List<NetFlag> all_netgame_flags, List<TagPath> all_dec_types, List<Decal> all_dec_entries, string h3ek_path, string scen_path)
     {
         // Weapons dictionary
         Dictionary<string, TagPath> weapMapping = new Dictionary<string, TagPath>
@@ -1113,11 +1181,74 @@ class MB_Zones
                 string angle_xyz = netflag.netflag_orient + ",0,0";
                 rotation.Data = angle_xyz.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
 
+                // Team
+                var team = (TagFieldEnum)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[118]).Elements[current_count].Fields[7]).Elements[0].Fields[3];
+                team.Value = int.Parse(new string(netflag.netflag_team.TakeWhile(c => c != ',').ToArray()));
+            }
+
+            // Decals section
+            foreach (TagPath dec_type in all_dec_types)
+            {
+                // Check if current type exists in palette
+                bool type_exists_already = false;
+                foreach (var palette_entry in ((TagFieldBlock)tagFile.Fields[78]).Elements)
+                {
+                    var x = ((TagFieldReference)palette_entry.Fields[0]).Path;
+                    if (x == dec_type)
+                    {
+                        type_exists_already = true;
+                        break;
+                    }
+                }
+
+                // Add palette entry if needed
+                if (!type_exists_already)
+                {
+                    int current_count = ((TagFieldBlock)tagFile.Fields[78]).Elements.Count();
+                    ((TagFieldBlock)tagFile.Fields[78]).AddElement();
+                    var scen_type_ref = (TagFieldReference)((TagFieldBlock)tagFile.Fields[78]).Elements[current_count].Fields[0];
+                    scen_type_ref.Path = dec_type;
+                }
+            }
+
+            foreach (Decal decal in all_dec_entries)
+            {
+                int current_count = ((TagFieldBlock)tagFile.Fields[77]).Elements.Count();
+                ((TagFieldBlock)tagFile.Fields[77]).AddElement();
+                var type_ref = (TagFieldBlockIndex)((TagFieldBlock)tagFile.Fields[77]).Elements[current_count].Fields[1];
+                type_ref.Value = int.Parse(decal.decal_type);
+
+                // Position
+                var xyz_pos = (TagFieldElementArraySingle)((TagFieldBlock)tagFile.Fields[77]).Elements[current_count].Fields[4];
+                xyz_pos.Data = decal.decal_xyz.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
+
+                // Rotation stuff below - only god fucking knows what this is doing, and either way it doesnt work properly
+                double pitchDegrees = double.Parse(decal.decal_pitch);
+                double yawDegrees = double.Parse(decal.decal_yaw);
+
+                // Convert pitch and yaw angles from degrees to radians
+                double pitchRadians = Math.PI * pitchDegrees / 180.0;
+                double yawRadians = Math.PI * yawDegrees / 180.0;
+
+                // Calculate quaternion components directly
+                double halfYaw = yawRadians * 0.5;
+                double halfPitch = pitchRadians * 0.5;
+
+                Quaternion finalRotation = new Quaternion(
+                    (float)(Math.Sin(halfYaw) * Math.Cos(halfPitch)),
+                    (float)(-Math.Sin(halfPitch)),
+                    (float)(Math.Cos(halfYaw) * Math.Sin(halfPitch)),
+                    (float)(Math.Cos(halfPitch) * Math.Cos(halfYaw))
+                );
+
+                string quaternionString = $"{finalRotation.X},{finalRotation.Y},{finalRotation.Z},{finalRotation.W}";
+                var rotation = (TagFieldElementArraySingle)((TagFieldBlock)tagFile.Fields[77]).Elements[current_count].Fields[3];
+                rotation.Data = quaternionString.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
             }
 
             tagFile.Save();
 
-            Console.WriteLine("Finished");
+            Console.WriteLine("Finished!");
         }
     }
 }
