@@ -1184,6 +1184,35 @@ class MB_Zones
                 // Team
                 var team = (TagFieldEnum)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[118]).Elements[current_count].Fields[7]).Elements[0].Fields[3];
                 team.Value = int.Parse(new string(netflag.netflag_team.TakeWhile(c => c != ',').ToArray()));
+
+                // Grab editor folder
+                var folder = (TagFieldBlockIndex)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[118]).Elements[current_count].Fields[4]).Elements[0].Fields[11];
+                
+                // Choose folder based on type
+                if (name_stripped.ToLower().Contains("oddball"))
+                {
+                    folder.Value = 0;
+                }
+                else if (name_stripped.ToLower().Contains("ctf"))
+                {
+                    folder.Value = 1;
+                }
+                else if (name_stripped.ToLower().Contains("hill"))
+                {
+                    folder.Value = 2;
+                }
+                else if (name_stripped.ToLower().Contains("assault"))
+                {
+                    folder.Value = 3;
+                }
+                else if (name_stripped.ToLower().Contains("territories"))
+                {
+                    folder.Value = 4;
+                }
+                else
+                {
+                    folder.Value = -1;
+                }
             }
 
             // Decals section
