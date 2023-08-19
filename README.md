@@ -3,7 +3,7 @@
 Converts data from an exported H2 scenario and transplants it into your ported H3 scenario!
 
 # Currently converts:
-- H2 multiplayer starting location to H3 respawn point scenery. Includes team data.
+- H2 multiplayer starting locations to H3 respawn point scenery. Includes team data.
 - Weapon palette and placements. Weapon palette references will attempt to automatically use existing H3 weapon tags where applicable. Grenades included.
 - All scenery types and placements, including variant names. Scenery type filepaths still use the H2 filepaths - change the path(s) in Guerilla once you have ported the item(s)!
 - All trigger volumes, including names
