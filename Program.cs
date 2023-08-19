@@ -91,7 +91,7 @@ class MB_Zones
         string xml_path;
 
         // Temporarily disable
-        /*
+        
         Console.WriteLine("H2 to H3 Scenario Converter by PepperMan\n\n");
         while (true)
         {
@@ -127,11 +127,11 @@ class MB_Zones
                 Console.WriteLine("\nFile doesn't look like a .txt or .xml file. Please try again.");
             }
         }
-        */
+        
 
         // TODO: Remove temporary hardcoding
-        scen_path = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\H3EK\\tags\\halo_2\\levels\\elongation\\elongation.scenario";
-        xml_path = @"G:\Steam\steamapps\common\H2EK\elongation_output.xml";
+        //scen_path = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\H3EK\\tags\\halo_2\\levels\\elongation\\elongation.scenario";
+        //xml_path = @"G:\Steam\steamapps\common\H2EK\elongation_output.xml";
 
         string h3ek_path = scen_path.Substring(0, scen_path.IndexOf("H3EK") + "H3EK".Length);
 
@@ -745,7 +745,7 @@ class MB_Zones
             }
             else
             {
-                Console.WriteLine("No existing sceneries, adding respawn point");
+                Console.WriteLine("\nNo existing sceneries, adding respawn point\n");
                 ((TagFieldBlock)tagFile.Fields[21]).AddElement();
                 var scen_tag = (TagFieldReference)((TagFieldBlock)tagFile.Fields[21]).Elements[0].Fields[0];
                 scen_tag.Path = respawn_scen_path;
@@ -1275,7 +1275,8 @@ class MB_Zones
 
             tagFile.Save();
 
-            Console.WriteLine("Finished!");
+            Console.WriteLine("\nScenario data conversion complete!\nPress enter to exit...");
+            Console.ReadLine();
         }
     }
 }
