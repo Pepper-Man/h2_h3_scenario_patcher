@@ -6,7 +6,7 @@ Converts data from an exported H2 scenario and transplants it into your ported H
 - H2 multiplayer starting locations to H3 respawn point scenery. Includes team data.
 - Weapon palette and placements. Weapon palette references will attempt to automatically use existing H3 weapon tags where applicable. Grenades included.
 - All scenery types and placements, including variant names. Scenery type filepaths still use the H2 filepaths - change the path(s) in Guerilla once you have ported the item(s)!
-- All trigger volumes, including names
+- All trigger volumes, including names.
 - All vehicle types and placements, including variant names. Vehicle palette references will attempt to automatically use existing H3 vehicle tags where applicable.
 - All crates, including variant names. Crate type filepaths still use the H2 filepaths - change the path(s) in Guerilla once you have ported the item(s)!
 - All (netgame) gamemode items (CTF flag spawns, territories, bomb spawns/goals, teleporter sender/receivers etc etc) to H3 gametype crates. Unused or unapplicable gametype objects, such as race checkpoints and headhunter bins, are included but replaced with temporary forerunner core crates for easy identification.
