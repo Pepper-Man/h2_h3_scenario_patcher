@@ -1,6 +1,6 @@
 
 # H2 to H3 Scenario Converter
-Converts data from an exported H2 scenario and transplants it into your ported H3 scenario!
+Converts data from an exported H2 scenario and transplants it into your ported H3 scenario! Intended for use with multiplayer scenarios.
 
 # Currently converts:
 - H2 multiplayer starting locations to H3 respawn point scenery. Includes team data.
