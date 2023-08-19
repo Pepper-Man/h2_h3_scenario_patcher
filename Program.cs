@@ -1,10 +1,13 @@
 ﻿using Bungie;
 using Bungie.Tags;
 using System;
+using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Xml;
+using System.Xml.Linq;
+using System.Diagnostics;
 
 class StartLoc
 {
@@ -61,6 +64,15 @@ class Crate
     public string crate_xyz { get; set; }
     public string crate_orient { get; set; }
     public string crate_vrnt { get; set; }
+}
+
+class NetFlag
+{
+    public string netflag_name { get; set; }
+    public string netflag_xyz { get; set; }
+    public string netflag_orient { get; set; }
+    public string netflag_type { get; set; }
+    public string netflag_team { get; set; }
 }
 
 
@@ -190,6 +202,7 @@ class MB_Zones
         XmlNodeList crate_palette_block = root.SelectNodes(".//block[@name='crate palette']");
         XmlNodeList crate_entries_block = root.SelectNodes(".//block[@name='crates']");
         XmlNodeList object_names_block = root.SelectNodes(".//block[@name='object names']");
+        XmlNodeList netgame_flags_block = root.SelectNodes(".//block[@name='netgame flags']");
 
         List<StartLoc> all_starting_locs = new List<StartLoc>();
         List<WeapLoc> all_weapon_locs = new List<WeapLoc>();
@@ -201,6 +214,7 @@ class MB_Zones
         List<TagPath> all_crate_types = new List<TagPath>();
         List<Crate> all_crate_entries = new List<Crate>();
         List<string> all_object_names = new List<string>();
+        List<NetFlag> all_netgame_flags = new List<NetFlag>();
 
         foreach (XmlNode name in object_names_block)
         {
@@ -220,6 +234,26 @@ class MB_Zones
                     Console.WriteLine("Finished processing object name data.");
                 }
             } 
+        }
+
+        foreach (XmlNode name in netgame_flags_block)
+        {
+            bool names_end = false;
+            int i = 0;
+            while (!names_end)
+            {
+                XmlNode element = name.SelectSingleNode("./element[@index='" + i + "']");
+                if (element != null)
+                {
+                    all_object_names.Add(element.Attributes["name"].Value);
+                    i++;
+                }
+                else
+                {
+                    names_end = true;
+                    Console.WriteLine("Finished processing netgame flag name data.");
+                }
+            }
         }
 
         foreach (XmlNode location in player_start_loc_block)
@@ -506,11 +540,44 @@ class MB_Zones
             }
         }
 
+        foreach (XmlNode netflag in netgame_flags_block)
+        {
+            bool netflags_end = false;
+            int i = 0;
+            while (!netflags_end)
+            {
+                XmlNode element = netflag.SelectSingleNode("./element[@index='" + i + "']");
+                if (element != null)
+                {
+                    string name = element.Attributes["name"].Value;
+                    string xyz = element.SelectSingleNode("./field[@name='position']").InnerText.Trim();
+                    string orient = element.SelectSingleNode("./field[@name='facing']").InnerText.Trim();
+                    string type = element.SelectSingleNode("./field[@name='type']").InnerText.Trim();
+                    string team = element.SelectSingleNode("./field[@name='team designator']").InnerText.Trim();
 
-        ManagedBlamHandler(all_object_names, all_starting_locs, all_weapon_locs, all_scen_types, all_scen_entries, all_trig_vols, all_vehi_types, all_vehi_entries, all_crate_types, all_crate_entries, h3ek_path, scen_path);
+                    all_netgame_flags.Add(new NetFlag
+                    {
+                        netflag_name = name,
+                        netflag_xyz = xyz,
+                        netflag_orient = orient,
+                        netflag_type = type,
+                        netflag_team = team
+                    });
+
+                    i++;
+                }
+                else
+                {
+                    netflags_end = true;
+                    Console.WriteLine("Finished processing netgame flags data.");
+                }
+            }
+        }
+
+        ManagedBlamHandler(all_object_names, all_starting_locs, all_weapon_locs, all_scen_types, all_scen_entries, all_trig_vols, all_vehi_types, all_vehi_entries, all_crate_types, all_crate_entries, all_netgame_flags, h3ek_path, scen_path);
     }
 
-    static void ManagedBlamHandler(List<string> all_object_names, List<StartLoc> spawn_data, List<WeapLoc> weap_data, List<TagPath> all_scen_types, List<Scenery> all_scen_entries, List<TrigVol> all_trig_vols, List<TagPath> all_vehi_types, List<Vehicle> all_vehi_entries, List<TagPath> all_crate_types, List<Crate> all_crate_entries, string h3ek_path, string scen_path)
+    static void ManagedBlamHandler(List<string> all_object_names, List<StartLoc> spawn_data, List<WeapLoc> weap_data, List<TagPath> all_scen_types, List<Scenery> all_scen_entries, List<TrigVol> all_trig_vols, List<TagPath> all_vehi_types, List<Vehicle> all_vehi_entries, List<TagPath> all_crate_types, List<Crate> all_crate_entries, List<NetFlag> all_netgame_flags, string h3ek_path, string scen_path)
     {
         // Weapons dictionary
         Dictionary<string, TagPath> weapMapping = new Dictionary<string, TagPath>
@@ -536,7 +603,29 @@ class MB_Zones
             {"brute_shot", TagPath.FromPathAndType(@"objects\weapons\support_low\brute_shot\brute_shot", "weap*")},
         };
 
-
+        // Netgame flag dictionary
+        Dictionary<string, TagPath> netflagMapping = new Dictionary<string, TagPath>
+        {
+            {"0,CTF flag spawn", TagPath.FromPathAndType(@"objects\multi\ctf\ctf_flag_spawn_point", "bloc*")},
+            {"1,CTF flag return", TagPath.FromPathAndType(@"objects\multi\ctf\ctf_flag_return_area", "bloc*")},
+            {"2,Assault bomb spawn", TagPath.FromPathAndType(@"objects\multi\assault\assault_bomb_spawn_point", "bloc*")},
+            {"3,Assault bomb return", TagPath.FromPathAndType(@"objects\multi\assault\assault_bomb_goal_area", "bloc*")},
+            {"4,Oddball spawn", TagPath.FromPathAndType(@"objects\multi\oddball\oddball_ball_spawn_point", "bloc*")},
+            {"5,unused", TagPath.FromPathAndType(@"objects\gear\forerunner\power_core_for\power_core_for", "bloc*")},
+            {"6,Race checkpoint", TagPath.FromPathAndType(@"objects\gear\forerunner\power_core_for\power_core_for", "bloc*")},
+            {"7,Teleporter (src)", TagPath.FromPathAndType(@"objects\multi\teleporter_sender\teleporter_sender", "bloc*")},
+            {"8,Teleporter (dest)", TagPath.FromPathAndType(@"objects\multi\teleporter_reciever\teleporter_reciever", "bloc*")},
+            {"9,Headhunter bin", TagPath.FromPathAndType(@"objects\gear\forerunner\power_core_for\power_core_for", "bloc*")},
+            {"10,Territories flag", TagPath.FromPathAndType(@"objects\multi\territories\territory_static", "bloc*")},
+            {"11,King Hill 0", TagPath.FromPathAndType(@"objects\multi\koth\koth_hill_static", "bloc*")},
+            {"12,King Hill 1", TagPath.FromPathAndType(@"objects\multi\koth\koth_hill_static", "bloc*")},
+            {"13,King Hill 2", TagPath.FromPathAndType(@"objects\multi\koth\koth_hill_static", "bloc*")},
+            {"14,King Hill 3", TagPath.FromPathAndType(@"objects\multi\koth\koth_hill_static", "bloc*")},
+            {"15,King Hill 4", TagPath.FromPathAndType(@"objects\multi\koth\koth_hill_static", "bloc*")},
+            {"16,King Hill 5", TagPath.FromPathAndType(@"objects\multi\koth\koth_hill_static", "bloc*")},
+            {"17,King Hill 6", TagPath.FromPathAndType(@"objects\multi\koth\koth_hill_static", "bloc*")},
+            {"18,King Hill 7", TagPath.FromPathAndType(@"objects\multi\koth\koth_hill_static", "bloc*")},
+        };
 
         // Variables
         var tag_path = TagPath.FromPathAndType(Path.ChangeExtension(scen_path.Split(new[] { "\\tags\\" }, StringSplitOptions.None).Last(), null).Replace('\\', Path.DirectorySeparatorChar), "scnr*");
@@ -975,6 +1064,55 @@ class MB_Zones
                 var z = ((TagFieldStruct)((TagFieldBlock)tagFile.Fields[118]).Elements[current_count].Fields[5]).Elements[0].Fields[0].FieldName;
                 var variant = (TagFieldElementStringID)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[118]).Elements[current_count].Fields[5]).Elements[0].Fields[0];
                 variant.Data = crate.crate_vrnt;
+            }
+
+            Dictionary<string, int> existing_gametype_crates = new Dictionary<string, int>();
+
+            // Netgame flags to gametype crates section
+            foreach (NetFlag netflag in all_netgame_flags)
+            {
+                int type_index = 0;
+                string temp = Regex.Replace(netflag.netflag_type, @"^.*?,\s*", "");
+                string name_stripped = Regex.Replace(temp, @"\d+$", "").Trim();
+                if (!existing_gametype_crates.ContainsKey(name_stripped))
+                {
+                    // Add type to crate palette
+                    type_index = ((TagFieldBlock)tagFile.Fields[119]).Elements.Count();
+                    ((TagFieldBlock)tagFile.Fields[119]).AddElement();
+                    var crate_type_ref = (TagFieldReference)((TagFieldBlock)tagFile.Fields[119]).Elements[type_index].Fields[0];
+                    crate_type_ref.Path = netflagMapping[netflag.netflag_type];
+                    existing_gametype_crates.Add(name_stripped, type_index);
+                }
+                else
+                {
+                    type_index = existing_gametype_crates[name_stripped];
+                }
+
+                int current_count = ((TagFieldBlock)tagFile.Fields[118]).Elements.Count(); // Get current crate count
+                ((TagFieldBlock)tagFile.Fields[118]).AddElement();
+                var type_ref = (TagFieldBlockIndex)((TagFieldBlock)tagFile.Fields[118]).Elements[current_count].Fields[1];
+                type_ref.Value = existing_gametype_crates[name_stripped];
+
+                // Name
+                var name_field = (TagFieldBlockIndex)((TagFieldBlock)tagFile.Fields[118]).Elements[current_count].Fields[3];
+                name_field.Value = all_object_names.IndexOf(netflag.netflag_name);
+
+                // Dropdown type and source (won't be valid without these)
+                var dropdown_type = (TagFieldEnum)((TagFieldStruct)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[118]).Elements[current_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
+                var dropdown_source = (TagFieldEnum)((TagFieldStruct)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[118]).Elements[current_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[3];
+                dropdown_type.Value = 10; // 1 for crate
+                dropdown_source.Value = 1; // 1 for editor
+
+                // Position
+                var y = ((TagFieldStruct)((TagFieldBlock)tagFile.Fields[118]).Elements[current_count].Fields[4]).Elements[0].Fields[0].FieldName;
+                var xyz_pos = (TagFieldElementArraySingle)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[118]).Elements[current_count].Fields[4]).Elements[0].Fields[2];
+                xyz_pos.Data = netflag.netflag_xyz.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
+
+                // Rotation
+                var rotation = (TagFieldElementArraySingle)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[118]).Elements[current_count].Fields[4]).Elements[0].Fields[3];
+                string angle_xyz = netflag.netflag_orient + ",0,0";
+                rotation.Data = angle_xyz.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
+
             }
 
             tagFile.Save();
