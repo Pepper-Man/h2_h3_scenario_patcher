@@ -7,7 +7,7 @@ Converts data from an exported H2 scenario and transplants it into your ported H
 - Weapon palette and placements. Weapon palette references will attempt to automatically use existing H3 weapon tags where applicable. Grenades included.
 - All scenery types and placements, including variant names. Scenery type filepaths still use the H2 filepaths - change the path(s) in Guerilla once you have ported the item(s)!
 - All trigger volumes, including names.
-- All vehicle types and placements, including variant names. Vehicle palette references will attempt to automatically use existing H3 vehicle tags where applicable.
+- All vehicle types and placements. Vehicle palette references will attempt to automatically use existing H3 vehicle tags where applicable. Some variants may not be applied. Turret types not available in H3 will be switched for the standard mounted turret type for the given faction.
 - All crates, including variant names. Crate type filepaths still use the H2 filepaths - change the path(s) in Guerilla once you have ported the item(s)!
 - All (netgame) gamemode items (CTF flag spawns, territories, bomb spawns/goals, teleporter sender/receivers etc etc) to H3 gametype crates. Unused or unapplicable gametype objects, such as race checkpoints and headhunter bins, are included but replaced with temporary forerunner core crates for easy identification.
 - All decal placements and types. Due to system incompatibilities between engines, decals may appear rotated and/or stretched incorrectly. To fix stretching, simply touch the rotation handle. Rotate with the handle to fix rotations where necessary.
