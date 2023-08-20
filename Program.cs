@@ -89,7 +89,7 @@ class MB_Zones
     {
         string scen_path;
         string xml_path;
-         
+        
         Console.WriteLine("H2 to H3 Scenario Converter by PepperMan\n\n");
         while (true)
         {
@@ -763,7 +763,6 @@ class MB_Zones
                 ((TagFieldBlock)tagFile.Fields[21]).AddElement();
                 var scen_tag = (TagFieldReference)((TagFieldBlock)tagFile.Fields[21]).Elements[0].Fields[0];
                 scen_tag.Path = respawn_scen_path;
-                totalScenCount++;
             }
             
 
@@ -1068,6 +1067,8 @@ class MB_Zones
                 var z = ((TagFieldStruct)((TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[5]).Elements[0].Fields[0].FieldName;
                 var variant = (TagFieldElementStringID)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[20]).Elements[current_count].Fields[5]).Elements[0].Fields[0];
                 variant.Data = scenery.scen_vrnt;
+
+                tagFile.Save();
             }
 
             // Trigger volumes section
