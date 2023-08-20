@@ -89,10 +89,7 @@ class MB_Zones
     {
         string scen_path;
         string xml_path;
-
-        // Temporarily disable
-        
-        /*
+         
         Console.WriteLine("H2 to H3 Scenario Converter by PepperMan\n\n");
         while (true)
         {
@@ -128,12 +125,11 @@ class MB_Zones
                 Console.WriteLine("\nFile doesn't look like a .txt or .xml file. Please try again.");
             }
         }
-        */
         
-
-        // TODO: Remove temporary hardcoding
-        scen_path = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\H3EK\\tags\\halo_2\\levels\\ascension\\ascension_new.scenario";
-        xml_path = @"G:\Steam\steamapps\common\H2EK\ascension_output.xml";
+        
+        // Temporary hardcoding for quick debugging
+        //scen_path = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\H3EK\\tags\\halo_2\\levels\\ascension\\ascension_new.scenario";
+        //xml_path = @"G:\Steam\steamapps\common\H2EK\ascension_output.xml";
 
         string h3ek_path = scen_path.Substring(0, scen_path.IndexOf("H3EK") + "H3EK".Length);
 
