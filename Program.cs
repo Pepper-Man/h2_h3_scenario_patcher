@@ -669,6 +669,7 @@ class MB_Zones
             {"fuel_rod_gun", TagPath.FromPathAndType(@"objects\weapons\support_high\flak_cannon\flak_cannon", "weap*")},
             {"sentinel_beam", TagPath.FromPathAndType(@"objects\weapons\support_low\sentinel_gun\sentinel_gun", "weap*")},
             {"brute_shot", TagPath.FromPathAndType(@"objects\weapons\support_low\brute_shot\brute_shot", "weap*")},
+            {"powerup", TagPath.FromPathAndType(@"objects\multi\powerups\powerup_red\powerup_red", "eqip*")}
         };
 
         // Netgame flag dictionary
@@ -840,7 +841,7 @@ class MB_Zones
 
                     // Now add the equipment itself
                     int equip_count = ((TagFieldBlock)tagFile.Fields[26]).Elements.Count();
-                    ((TagFieldBlock)tagFile.Fields[26]).AddElement(); // Add new weapon entry
+                    ((TagFieldBlock)tagFile.Fields[26]).AddElement(); // Add new equipment entry
 
                     // XYZ
                     var equip_xyz = (TagFieldElementArraySingle)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[4]).Elements[0].Fields[2];
@@ -861,7 +862,7 @@ class MB_Zones
                     // Dropdown type and source (won't be valid without these)
                     var dropdown_type = (TagFieldEnum)((TagFieldStruct)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
                     var dropdown_source = (TagFieldEnum)((TagFieldStruct)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[3];
-                    dropdown_type.Value = 3; // 2 for equipment
+                    dropdown_type.Value = 3; // 3 for equipment
                     dropdown_source.Value = 1; // 1 for editor
 
                     continue;
@@ -878,8 +879,48 @@ class MB_Zones
                 }
                 else if (weap_type.Contains("powerup"))
                 {
-                    // Powerup, ignore for now
-                    Console.WriteLine("Ignoring " + weap_type + " powerup");
+                    // Powerup, add equipment, check if palette entry exists first
+                    bool equip_entry_exists = false;
+                    foreach (var palette_entry in ((TagFieldBlock)tagFile.Fields[27]).Elements)
+                    {
+                        var temp_type = weapMapping["powerup"];
+                        if (((TagFieldReference)palette_entry.Fields[0]).Path == temp_type)
+                        {
+                            equip_entry_exists = true;
+                        }
+                    }
+
+                    // Add palette entry if needed
+                    if (!equip_entry_exists)
+                    {
+                        int current_count = ((TagFieldBlock)tagFile.Fields[27]).Elements.Count();
+                        ((TagFieldBlock)tagFile.Fields[27]).AddElement();
+                        var equip_tag_ref = (TagFieldReference)((TagFieldBlock)tagFile.Fields[27]).Elements[current_count].Fields[0];
+                        equip_tag_ref.Path = weapMapping["powerup"];
+                        weapPaletteMapping.Add("powerup", current_count);
+                    }
+
+                    // Now add the equipment itself
+                    int equip_count = ((TagFieldBlock)tagFile.Fields[26]).Elements.Count();
+                    ((TagFieldBlock)tagFile.Fields[26]).AddElement(); // Add new equipment entry
+
+                    // XYZ
+                    var equip_xyz = (TagFieldElementArraySingle)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[4]).Elements[0].Fields[2];
+                    equip_xyz.Data = weapon.weap_xyz.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
+
+                    // Rotation
+                    var equip_orient = (TagFieldElementArraySingle)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[4]).Elements[0].Fields[3];
+                    equip_orient.Data = weapon.weap_orient.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
+
+                    // Type
+                    var equip_tag = (TagFieldBlockIndex)((TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[1];
+                    equip_tag.Value = weapPaletteMapping["powerup"];
+
+                    // Dropdown type and source (won't be valid without these)
+                    var dropdown_type = (TagFieldEnum)((TagFieldStruct)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
+                    var dropdown_source = (TagFieldEnum)((TagFieldStruct)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[26]).Elements[equip_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[3];
+                    dropdown_type.Value = 3; // 3 for equipment
+                    dropdown_source.Value = 1; // 1 for editor
                 }
                 else if (weapon.weap_type.Contains("vehicles"))
                 {
