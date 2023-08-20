@@ -92,6 +92,7 @@ class MB_Zones
 
         // Temporarily disable
         
+        /*
         Console.WriteLine("H2 to H3 Scenario Converter by PepperMan\n\n");
         while (true)
         {
@@ -127,11 +128,12 @@ class MB_Zones
                 Console.WriteLine("\nFile doesn't look like a .txt or .xml file. Please try again.");
             }
         }
+        */
         
 
         // TODO: Remove temporary hardcoding
-        //scen_path = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\H3EK\\tags\\halo_2\\levels\\elongation\\elongation.scenario";
-        //xml_path = @"G:\Steam\steamapps\common\H2EK\elongation_output.xml";
+        scen_path = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\H3EK\\tags\\halo_2\\levels\\ascension\\ascension_new.scenario";
+        xml_path = @"G:\Steam\steamapps\common\H2EK\ascension_output.xml";
 
         string h3ek_path = scen_path.Substring(0, scen_path.IndexOf("H3EK") + "H3EK".Length);
 
@@ -693,6 +695,21 @@ class MB_Zones
             {"18,King Hill 7", TagPath.FromPathAndType(@"objects\multi\koth\koth_hill_static", "bloc*")},
         };
 
+        // Netgame vehicle dictionary
+        Dictionary<string, TagPath> netVehiMapping = new Dictionary<string, TagPath>
+        {
+            {"banshee", TagPath.FromPathAndType(@"objects\vehicles\banshee\banshee", "vehi*")},
+            {"banshee_heretic", TagPath.FromPathAndType(@"objects\vehicles\banshee\banshee", "vehu*")},
+            {"ghost", TagPath.FromPathAndType(@"objects\vehicles\ghost\ghost", "vehi*")},
+            {"c_turret_mp", TagPath.FromPathAndType(@"objects\weapons\turret\plasma_cannon\plasma_cannon", "vehi*")},
+            {"h_turret_ap", TagPath.FromPathAndType(@"objects\weapons\turret\machinegun_turret\machinegun_turret", "vehi*")},
+            {"h_turret_mp", TagPath.FromPathAndType(@"objects\weapons\turret\machinegun_turret\machinegun_turret", "vehi*")},
+            {"scorpion", TagPath.FromPathAndType(@"objects\vehicles\scorpion\scorpion", "vehi*")},
+            {"warthog", TagPath.FromPathAndType(@"objects\vehicles\warthog\warthog", "vehi*")},
+            {"warthog_gauss", TagPath.FromPathAndType(@"objects\vehicles\warthog\warthog", "vehi*")},
+            {"wraith", TagPath.FromPathAndType(@"objects\vehicles\wraith\wraith", "vehi*")}
+        };
+
         // Variables
         var tag_path = TagPath.FromPathAndType(Path.ChangeExtension(scen_path.Split(new[] { "\\tags\\" }, StringSplitOptions.None).Last(), null).Replace('\\', Path.DirectorySeparatorChar), "scnr*");
         var respawn_scen_path = TagPath.FromPathAndType(@"objects\multi\spawning\respawn_point", "scen*");
@@ -801,7 +818,6 @@ class MB_Zones
                     Console.WriteLine("Adding " + weap_type + " equipment");
 
                     // Equipment, check if palette entry exists first
-                    Console.WriteLine("Adding " + weap_type + " equipment");
                     bool equip_entry_exists = false;
                     foreach (var palette_entry in ((TagFieldBlock)tagFile.Fields[27]).Elements)
                     {
@@ -850,11 +866,64 @@ class MB_Zones
 
                     continue;
                 }
-                if (weap_type == "")
+                else if (weap_type == "")
                 {
                     // All games entries, ignore
                     Console.WriteLine("Ignoring blank weapon collection");
                     continue;
+                }
+                else if (weap_type.Contains("ammo"))
+                {
+                    // Ammo placement, ignore for now
+                }
+                else if (weap_type.Contains("powerup"))
+                {
+                    // Powerup, ignore for now
+                    Console.WriteLine("Ignoring " + weap_type + " powerup");
+                }
+                else if (weapon.weap_type.Contains("vehicles"))
+                {
+                    // Check if current type exists in palette
+                    bool type_exists_already = false;
+                    foreach (var palette_entry in ((TagFieldBlock)tagFile.Fields[25]).Elements)
+                    {
+                        var x = ((TagFieldReference)palette_entry.Fields[0]).Path;
+                        if (x == netVehiMapping[weap_type])
+                        {
+                            type_exists_already = true;
+                            break;
+                        }
+                    }
+
+                    // Add palette entry if needed
+                    int current_count = ((TagFieldBlock)tagFile.Fields[25]).Elements.Count();
+                    if (!type_exists_already)
+                    {
+                        ((TagFieldBlock)tagFile.Fields[25]).AddElement();
+                        var vehi_type_ref = (TagFieldReference)((TagFieldBlock)tagFile.Fields[25]).Elements[current_count].Fields[0];
+                        vehi_type_ref.Path = netVehiMapping[weap_type];
+                        totalVehiCount++;
+                    }
+
+                    int vehi_count = ((TagFieldBlock)tagFile.Fields[24]).Elements.Count();
+                    ((TagFieldBlock)tagFile.Fields[24]).AddElement();
+                    var type_ref = (TagFieldBlockIndex)((TagFieldBlock)tagFile.Fields[24]).Elements[vehi_count].Fields[1];
+                    type_ref.Value = current_count;
+
+                    // Dropdown type and source (won't be valid without these)
+                    var dropdown_type = (TagFieldEnum)((TagFieldStruct)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[24]).Elements[vehi_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[2];
+                    var dropdown_source = (TagFieldEnum)((TagFieldStruct)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[24]).Elements[vehi_count].Fields[4]).Elements[0].Fields[9]).Elements[0].Fields[3];
+                    dropdown_type.Value = 1; // 1 for vehicle
+                    dropdown_source.Value = 1; // 1 for editor
+
+                    // Position
+                    var y = ((TagFieldStruct)((TagFieldBlock)tagFile.Fields[24]).Elements[vehi_count].Fields[4]).Elements[0].Fields[0].FieldName;
+                    var xyz_pos = (TagFieldElementArraySingle)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[24]).Elements[vehi_count].Fields[4]).Elements[0].Fields[2];
+                    xyz_pos.Data = weapon.weap_xyz.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
+
+                    // Rotation
+                    var rotation = (TagFieldElementArraySingle)((TagFieldStruct)((TagFieldBlock)tagFile.Fields[24]).Elements[vehi_count].Fields[4]).Elements[0].Fields[3];
+                    rotation.Data = weapon.weap_orient.Split(',').Select(valueString => float.TryParse(valueString, out float floatValue) ? floatValue : float.NaN).ToArray();
                 }
                 else
                 {
